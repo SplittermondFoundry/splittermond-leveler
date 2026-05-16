@@ -1,0 +1,521 @@
+.splittermond .lms-xp-actions {
+    display: inline-flex;
+    gap: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.splittermond .lms-xp-actions button {
+    min-width: 20px;
+    min-height: 20px;
+}
+
+.splittermond.lms-advancement-active {
+    box-sizing: border-box;
+}
+
+.lms-planning-window {
+    min-width: 300px;
+}
+
+.lms-planning-window:not(form.application) {
+    color: var(--color-text-secondary, #1b130d);
+    background: var(--splittermond-background-parchment, url(/systems/splittermond/images/parchment.jpg) repeat);
+    border: 3px solid transparent;
+    border-image: var(--border-image-paper, url(/systems/splittermond/images/border-paper-opt-2.png) 16 16);
+    border-image-width: var(--border-image-width-paper, 16px);
+    border-image-outset: var(--border-image-outset-paper, 3px);
+    border-image-repeat: round;
+}
+
+.lms-planning-window:not(form.application) .window-content {
+    margin: 5px;
+    margin-top: 0;
+    padding: 8px;
+    overflow: hidden;
+    background: var(--splittermond-background-parchment-blue, none), var(--splittermond-background-parchment, url(/systems/splittermond/images/parchment.jpg) repeat);
+    background-blend-mode: var(--background-parchment-splittermond-blend-mode, multiply);
+    border: 4px solid transparent;
+    border-image: var(--border-image-double-corner-1, url(/systems/splittermond/images/double-border-corner-1.png) 21 21);
+    border-image-width: var(--border-image-width-double-corner-1, 21px);
+    border-image-outset: var(--border-image-outset-double-corner-1, 0);
+}
+
+.lms-planning-window .window-content {
+    overflow: hidden;
+}
+
+.lms-planning-panel {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow-y: auto;
+    color: #1b130d;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    box-sizing: border-box;
+    text-shadow: none;
+}
+
+.lms-planning-panel * {
+    color: inherit;
+    text-shadow: none;
+}
+
+.lms-planning-panel button {
+    color: #f4ead9;
+}
+
+.lms-planning-panel .lms-panel-actor,
+.lms-planning-panel .lms-heldengrad,
+.lms-planning-panel .lms-muted {
+    font-size: 12px;
+    opacity: 0.88;
+}
+
+.lms-planning-panel .lms-panel-actor {
+    margin-bottom: 8px;
+}
+
+.lms-planning-panel .lms-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.lms-planning-panel .lms-stat-card {
+    display: grid;
+    gap: 2px;
+    padding: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.28);
+    background: rgba(255, 255, 255, 0.58);
+}
+
+.lms-planning-panel .lms-stat-card span {
+    font-size: 11px;
+    opacity: 0.86;
+}
+
+.lms-planning-panel .lms-stat-card strong {
+    font-size: 18px;
+}
+
+.lms-planning-panel .lms-stat-card.lms-ok strong {
+    color: #275727;
+}
+
+.lms-planning-panel .lms-stat-card.lms-danger strong {
+    color: #8b1d1d;
+}
+
+.lms-planning-panel .lms-plan-list h3 {
+    margin: 10px 0 4px;
+    font-size: 16px;
+}
+
+.lms-planning-panel .lms-plan-list ol {
+    display: grid;
+    gap: 5px;
+    padding: 0;
+    margin: 0;
+}
+
+.lms-planning-panel .lms-plan-list li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    align-items: start;
+    list-style: none;
+    padding: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.26);
+    background: rgba(255, 255, 255, 0.62);
+}
+
+.lms-planning-panel .lms-plan-list li div {
+    display: grid;
+    gap: 2px;
+}
+
+.lms-planning-panel .lms-plan-list li span,
+.lms-planning-panel .lms-plan-list p {
+    font-size: 12px;
+    opacity: 0.86;
+}
+
+.lms-planning-panel .lms-panel-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.lms-planning-panel .lms-panel-actions button {
+    min-height: 28px;
+    margin: 0;
+    font-weight: 700;
+    border: 1px solid rgba(0, 0, 0, 0.45);
+    border-radius: 4px;
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.lms-planning-panel .lms-panel-actions button:not(:disabled) {
+    color: #f4ead9;
+    background: linear-gradient(180deg, #24232d, #07060d);
+    cursor: pointer;
+    opacity: 1;
+    filter: none;
+}
+
+.lms-planning-panel .lms-panel-actions button:disabled {
+    color: rgba(244, 234, 217, 0.72);
+    background: linear-gradient(180deg, #9a918b, #766a66);
+    cursor: not-allowed;
+    opacity: 1;
+    filter: grayscale(0.35);
+}
+
+.splittermond.lms-advancement-active .lms-has-inline-controls {
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-header,
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-item.attribute {
+    display: grid;
+    grid-template-columns: minmax(66px, 1fr) 35px 72px 28px;
+    column-gap: 4px;
+    align-items: start;
+}
+
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-header > label,
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-item.attribute > label {
+    min-width: 0;
+    padding-left: 0;
+}
+
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-header .start,
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-header .value,
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-header .max,
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-item.attribute .start,
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-item.attribute .value,
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-item.attribute .max {
+    justify-self: center;
+    text-align: center;
+}
+
+.splittermond.lms-advancement-active section[data-tab="general"] .list-attributes .list-item.attribute {
+    min-height: 45px;
+}
+
+.splittermond.lms-advancement-active section[data-tab="general"] .list-resources .list-item[data-item-id] {
+    display: grid;
+    grid-template-columns: minmax(72px, 1fr) 72px;
+    column-gap: 4px;
+    align-items: start;
+    padding-right: 0;
+    min-height: 45px;
+}
+
+.splittermond.lms-advancement-active section[data-tab="general"] .list-resources .list-item[data-item-id] > label {
+    min-width: 0;
+    padding-left: 0;
+}
+
+.splittermond.lms-advancement-active section[data-tab="general"] .list-resources .list-item[data-item-id] > .value {
+    justify-self: center;
+}
+
+.splittermond.lms-advancement-active .lms-has-inline-controls .value,
+.splittermond.lms-advancement-active .lms-has-inline-controls .points {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
+    overflow: visible;
+}
+
+.splittermond.lms-advancement-active .list-attributes .lms-has-inline-controls .value,
+.splittermond.lms-advancement-active .list-resources .lms-has-inline-controls .value,
+.splittermond.lms-advancement-active .list.skills .lms-has-inline-controls .points {
+    width: 72px;
+}
+
+.splittermond.lms-advancement-active .lms-has-inline-controls .value > input,
+.splittermond.lms-advancement-active .lms-has-inline-controls .points > input {
+    display: block;
+    align-self: center;
+    width: 34px !important;
+    max-width: 34px;
+    margin: 0 auto;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.splittermond .lms-inline-controls {
+    flex: none;
+    display: grid;
+    grid-template-columns: 20px 28px 20px;
+    align-items: center;
+    justify-content: stretch;
+    gap: 2px;
+    width: 72px;
+    min-height: 20px;
+    padding: 0;
+    font-size: 11px;
+    opacity: 1;
+}
+
+.splittermond .lms-planned-value {
+    min-width: 0;
+    text-align: center;
+    font-weight: 700;
+    color: #1f5f20;
+}
+
+.splittermond .lms-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    min-width: 0;
+    overflow: hidden;
+    padding-left: 0;
+    margin-top: 2px;
+}
+
+.splittermond.lms-advancement-active .lms-skill-name-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    overflow: visible;
+}
+
+.splittermond .lms-action-button,
+.splittermond .lms-section-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.splittermond .lms-section-controls {
+    display: flex;
+    justify-content: flex-start;
+    min-height: 24px;
+    padding: 3px 0 6px 3px;
+    margin: 0 0 4px;
+    border-image: linear-gradient(to right, transparent, rgba(var(--color-text-secondary_rgb), 0.18), transparent) 0 0 100% 0;
+    border-bottom: 1px solid transparent;
+}
+
+.splittermond .lms-section-action {
+    position: static;
+    min-width: 148px;
+    height: 24px;
+    justify-content: flex-start;
+    padding: 0 7px;
+    font-size: 11px;
+}
+
+.splittermond .lms-inline-controls button {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    padding: 0;
+}
+
+.splittermond .lms-action-button {
+    width: auto;
+    max-width: none;
+    height: 22px;
+    min-width: 130px;
+    padding: 0 5px;
+    font-size: 10px;
+    overflow: hidden;
+    justify-content: flex-start;
+}
+
+.splittermond .lms-action-button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.splittermond .lms-spell-header-action {
+    flex: none;
+    min-width: 156px;
+    height: 26px;
+    justify-content: flex-start;
+    padding: 0 8px;
+    font-size: 12px;
+}
+
+.splittermond .lms-spell-school-controls {
+    display: flex;
+    justify-content: flex-start;
+    min-height: 24px;
+    padding: 3px 0 6px 3px;
+    margin: 0 0 4px;
+    border-image: linear-gradient(to right, transparent, rgba(var(--color-text-secondary_rgb), 0.18), transparent) 0 0 100% 0;
+    border-bottom: 1px solid transparent;
+}
+
+.splittermond .lms-spell-school-controls .lms-action-button {
+    max-width: 240px;
+}
+
+.splittermond .lms-spell-school-controls .lms-action-button span,
+.splittermond .lms-section-controls .lms-section-action span {
+    display: inline;
+    max-width: none;
+}
+
+.splittermond .lms-action-button:disabled,
+.splittermond .lms-step-plus:disabled,
+.splittermond .lms-step-minus:disabled {
+    cursor: not-allowed;
+    opacity: 0.42;
+    filter: grayscale(0.5);
+}
+
+.lms-dialog.window-app,
+.lms-dialog.dialog {
+    color: var(--color-text-secondary, #1b130d);
+    background: var(--splittermond-background-parchment, url(/ui/parchment.jpg) repeat);
+    border: 3px solid transparent;
+    border-image: var(--border-image-paper, url(/systems/splittermond/images/border-paper-opt-2.png) 16 16);
+    border-image-width: var(--border-image-width-paper, 16px);
+    border-image-outset: var(--border-image-outset-paper, 3px);
+    border-image-repeat: round;
+}
+
+.lms-dialog .window-header {
+    background: transparent;
+    border: 0;
+}
+
+.lms-dialog .window-content {
+    color: var(--color-text-secondary, #1b130d);
+    background: var(--splittermond-background-parchment-blue, none), var(--splittermond-background-parchment, url(/ui/parchment.jpg) repeat);
+    background-position: top right;
+    background-blend-mode: var(--background-parchment-splittermond-blend-mode, multiply);
+    border: 4px solid transparent;
+    border-image: var(--border-image-double-corner-1, url(/systems/splittermond/images/double-border-corner-1.png) 21 21);
+    border-image-width: var(--border-image-width-double-corner-1, 21px);
+    border-image-outset: var(--border-image-outset-double-corner-1, 0);
+    margin: 5px;
+    margin-top: 0;
+    padding: 8px;
+}
+
+.lms-dialog .dialog-buttons {
+    gap: 6px;
+}
+
+.lms-dialog .dialog-buttons button,
+.lms-dialog button.dialog-button {
+    color: #f4ead9 !important;
+    background: linear-gradient(180deg, #3d4851, #1c2228) !important;
+    border: 1px solid rgba(0, 0, 0, 0.55);
+    text-shadow: 0 1px 1px #000;
+}
+
+.lms-dialog .dialog-buttons button:hover,
+.lms-dialog button.dialog-button:hover {
+    color: #fff7e8 !important;
+    background: linear-gradient(180deg, #4c5964, #252c34) !important;
+}
+
+.lms-dialog .dialog-buttons button:disabled,
+.lms-dialog button.dialog-button:disabled {
+    color: rgba(244, 234, 217, 0.58) !important;
+    background: linear-gradient(180deg, #9a918b, #766a66) !important;
+    cursor: not-allowed;
+    filter: grayscale(0.35);
+    text-shadow: none;
+}
+
+.lms-dialog-form .lms-dialog-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.lms-dialog-form label {
+    display: grid;
+    gap: 4px;
+}
+
+.lms-dialog-form input,
+.lms-dialog-form select {
+    width: 100%;
+}
+
+.lms-dialog-form .lms-number-stepper {
+    display: grid;
+    grid-template-columns: repeat(3, 34px) minmax(58px, 1fr) repeat(3, 34px);
+    gap: 4px;
+    align-items: center;
+}
+
+.lms-dialog-form .lms-number-stepper input {
+    height: 32px;
+    text-align: center;
+}
+
+.lms-dialog-form .lms-number-stepper button {
+    height: 32px;
+    padding: 0;
+}
+
+.lms-chat-summary {
+    display: grid;
+    gap: 8px;
+}
+
+.lms-chat-summary header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.lms-chat-summary ol {
+    display: grid;
+    gap: 5px;
+    padding: 0;
+    margin: 0;
+}
+
+.lms-chat-summary li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+    list-style: none;
+    padding: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.lms-chat-summary li span {
+    display: grid;
+    gap: 2px;
+}
+
+.lms-chat-summary small {
+    opacity: 0.72;
+}
+
+.lms-chat-undone {
+    opacity: 0.55;
+}
+
+.lms-chat-summary button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    filter: grayscale(0.45);
+}
