@@ -6,6 +6,7 @@ const newManifest = process.env.newManifest
 const newDownload = process.env.newDownload
 console.info(`Inputs: pathToSystemJson: ${pathToSystemJson}, manifest: ${newManifest}, download: ${newDownload}`)
 updateJsons(pathToSystemJson, (oldJson)=>{
+    oldJson.manifest = newManifest;
     oldJson.download = newDownload;
     return oldJson;
 })

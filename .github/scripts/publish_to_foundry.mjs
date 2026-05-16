@@ -1,6 +1,6 @@
 import fs from 'fs';
 
-const authToken = process.env.AUTH_TOKEN
+const authToken = process.env.AUTH_TOKEN ?? ''
 const pathToModuleJson = process.env.MODULE_JSON_PATH
 const isDryRun = process.env.DRY_RUN === 'true'
 
@@ -9,12 +9,12 @@ console.log(`Inputs: pathToModuleJson: ${pathToModuleJson}, isDryRun: ${isDryRun
 const systemJson = JSON.parse(fs.readFileSync(pathToModuleJson, 'utf-8'));
 
 const  body = {
-    "id": "splittermond-item-piles",
+    "id": "splittermond-leveler",
     "dry-run": isDryRun,
     "release": {
         "version": systemJson.version,
         "manifest": systemJson.manifest,
-        "notes": `https://github.com/SplittermondFoundry/splittermond-item-piles/releases/tag/v${systemJson.version}`,
+        "notes": `https://github.com/SplittermondFoundry/splittermond-leveler/releases/tag/v${systemJson.version}`,
         "compatibility": systemJson.compatibility
     }
 }

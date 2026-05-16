@@ -1,92 +1,90 @@
-name: "Release new ItemPiles: Splittermond version"
+name: Release Leveler
+
 permissions:
   contents: write
-  packages: write
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (without v prefix)'
+        description: "Version without v prefix, for example 0.1.17"
         required: true
+  push:
+    tags:
+      - "v*"
 
 jobs:
-  release-new-version:
+  release:
     runs-on: ubuntu-latest
     env:
-      outputName: splittermond-item-piles-${{github.event.inputs.version}}
-      outputFile: splittermond-item-piles-${{github.event.inputs.version}}.zip
-      prefixedVersion: v${{github.event.inputs.version}}
+      REPOSITORY_URL: https://github.com/SplittermondFoundry/splittermond-leveler
+      MANIFEST_URL: https://github.com/SplittermondFoundry/splittermond-leveler/releases/latest/download/module.json
+      FOUNDRY_TOKEN_AVAILABLE: ${{ secrets.FOUNDRY_VTT_PUBLISH_TOKEN != '' }}
     steps:
-      - name: check env
-        run: |
-          echo ${outputName}
-            echo ${outputFile}
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # fetch all history so we actually commit on top of main
-          #ref: main
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      - name: Set new version in system.json
+          node-version: "22"
+
+      - name: Resolve release metadata
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          TAG="v${VERSION}"
+          ZIP_FILE="splittermond-leveler-${VERSION}.zip"
+          DOWNLOAD_URL="${REPOSITORY_URL}/releases/download/${TAG}/${ZIP_FILE}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+          echo "ZIP_FILE=${ZIP_FILE}" >> "$GITHUB_ENV"
+          echo "DOWNLOAD_URL=${DOWNLOAD_URL}" >> "$GITHUB_ENV"
+
+      - name: Set version in module.json
         run: node ./.github/scripts/index.cjs
         env:
-          fileToUpdate: './public/module.json'
-          version: ${{github.event.inputs.version}}
-      - name: Set new version in package.json
-        run: node ./.github/scripts/index.cjs
-        env:
-          fileToUpdate: './package.json'
-          version: ${{github.event.inputs.version}}
-      - name: Set new paths in System.json
+          fileToUpdate: ./module.json
+          version: ${{ env.VERSION }}
+
+      - name: Set release URLs in module.json
         run: node ./.github/scripts/replace_links.cjs
         env:
-          fileToUpdate: './public/module.json'
-          newManifest: https://github.com/SplittermondFoundry/splittermond-item-piles/releases/download/${{env.prefixedVersion}}/module.json
-          newDownload: https://github.com/SplittermondFoundry/splittermond-item-piles/releases/download/${{env.prefixedVersion}}/${{env.outputFile}}
-      - name: Configure npm for GitHub Packages
-        run: npm set "//npm.pkg.github.com/:_authToken=${{secrets.GITHUB_TOKEN}}"
-      - name: Install dependencies
-        run: npm install
-      - name: Build
-        run: npm run build
-      - name: Push to main
+          fileToUpdate: ./module.json
+          newManifest: ${{ env.MANIFEST_URL }}
+          newDownload: ${{ env.DOWNLOAD_URL }}
+
+      - name: Validate module
         run: |
-          git config user.name github-actions[bot]
-          git config user.email github-actions[bot]@github.com
-          git add public/module.json package.json  package-lock.json
-          git commit -m "Update version to ${{github.event.inputs.version}}"
-          git tag ${{env.prefixedVersion}}
-          git push 
-          git push --tags
-      - name: Create Zip for foundry
-        run: |
-          sudo apt-get install zip 
-          cd dist/ && zip -r ../${{env.outputFile}} ./*; cd -
-          zip -r ${{env.outputFile}} LICENSE
-      - name: Release package to github
-        run: |
-          npm set "//npm.pkg.github.com/:_authToken=${{secrets.GITHUB_TOKEN}}"
-          npm publish
-          npm set "//npm.pkg.github.com/:_authToken=garbage"
-        env:
-            NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          node --check scripts/let-me-skill.js
+          node --check scripts/advancement-rules.js
+          node --check scripts/panel-layout.js
+          node -e "JSON.parse(require('fs').readFileSync('module.json', 'utf8')); console.log('module.json valid')"
+          node tests/advancement-rules.test.mjs
+          node tests/panel-layout.test.mjs
+
+      - name: Create Foundry package zip
+        shell: bash
+        run: zip -r "${ZIP_FILE}" module.json scripts styles templates LICENSE
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2.3.2
         with:
           generate_release_notes: true
           draft: false
-          tag_name: v${{github.event.inputs.version}}
+          tag_name: ${{ env.TAG }}
           files: |
-            ${{env.outputFile}}
-            dist/module.json
-      - name: Release to Foundry
+            ${{ env.ZIP_FILE }}
+            module.json
+
+      - name: Publish release to Foundry package admin
+        if: env.FOUNDRY_TOKEN_AVAILABLE == 'true'
         run: node ./.github/scripts/publish_to_foundry.mjs
         env:
-          AUTH_TOKEN: ${{secrets.FOUNDRY_VTT_PUBLISH_TOKEN}}
-          MODULE_JSON_PATH: './dist/module.json'
-          DRY_RUN: 'false'
-
+          AUTH_TOKEN: ${{ secrets.FOUNDRY_VTT_PUBLISH_TOKEN }}
+          MODULE_JSON_PATH: ./module.json
+          DRY_RUN: "false"

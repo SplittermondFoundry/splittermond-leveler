@@ -27,9 +27,9 @@ import {
 } from "./advancement-rules.js";
 import { calculateSnappedPanelPosition, sameSnappedPanelPosition, shouldResetSheetStateOnClose, zIndexBelowAnchor } from "./panel-layout.js";
 
-const MODULE_ID = "let-me-skill";
-const MODULE_VERSION = "0.1.15";
-const FLAG_SCOPE = "let-me-skill";
+const MODULE_ID = "splittermond-leveler";
+const MODULE_VERSION = "0.1.17";
+const FLAG_SCOPE = "splittermond-leveler";
 const FLAG_KEY = "advancementUndo";
 const ACTOR_UNDO_STATE_KEY = "advancementUndoState";
 const DEFAULT_RESOURCE_MAX = 6;
@@ -42,7 +42,7 @@ const PlanningApplicationBase = hasApplicationV2
     : Application;
 
 Hooks.once("init", () => {
-    console.log("Let Me Skill | init");
+    console.log("Leveler | init");
 });
 
 Hooks.once("ready", () => {
@@ -128,7 +128,7 @@ class AdvancementPlanningWindow extends PlanningApplicationBase {
         super(
             hasApplicationV2
                 ? {
-                      id: `let-me-skill-planning-${actor.id}`,
+                      id: `splittermond-leveler-planning-${actor.id}`,
                       window: {
                           title: `Steigerungsplanung v${MODULE_VERSION}`,
                           minimizable: true,
@@ -136,7 +136,7 @@ class AdvancementPlanningWindow extends PlanningApplicationBase {
                       },
                       position: { width: 320, height: 600 },
                   }
-                : { id: `let-me-skill-planning-${actor.id}` }
+                : { id: `splittermond-leveler-planning-${actor.id}` }
         );
         this.actor = actor;
         this.sheetState = sheetState;
@@ -148,9 +148,9 @@ class AdvancementPlanningWindow extends PlanningApplicationBase {
     }
 
     static DEFAULT_OPTIONS = {
-        id: "let-me-skill-planning",
+        id: "splittermond-leveler-planning",
         tag: "form",
-        classes: ["splittermond", "sheet", "actor", "let-me-skill", "lms-planning-window"],
+        classes: ["splittermond", "sheet", "actor", "splittermond-leveler", "lms-planning-window"],
         position: { width: 320, height: 600 },
         window: {
             title: `Steigerungsplanung v${MODULE_VERSION}`,
@@ -168,9 +168,9 @@ class AdvancementPlanningWindow extends PlanningApplicationBase {
 
     static get defaultOptions() {
         return foundry.utils.mergeObject(super.defaultOptions ?? {}, {
-            id: "let-me-skill-planning",
+            id: "splittermond-leveler-planning",
             title: `Steigerungsplanung v${MODULE_VERSION}`,
-            classes: ["splittermond", "sheet", "actor", "let-me-skill", "lms-planning-window"],
+            classes: ["splittermond", "sheet", "actor", "splittermond-leveler", "lms-planning-window"],
             width: 320,
             height: 600,
             resizable: true,
@@ -1422,7 +1422,7 @@ async function collectAllItemChoices(itemType) {
         try {
             index = await getCachedPackIndex(pack);
         } catch (error) {
-            console.warn("Let Me Skill | pack index failed", pack.collection, error);
+            console.warn("Leveler | pack index failed", pack.collection, error);
             continue;
         }
         for (const row of packIndexRows(index).filter((item) => item.type === itemType)) {
@@ -1432,7 +1432,7 @@ async function collectAllItemChoices(itemType) {
                 try {
                     choice = choiceFromItem(await pack.getDocument(rowId), itemType);
                 } catch (error) {
-                    console.warn("Let Me Skill | pack document failed", pack.collection, rowId, error);
+                    console.warn("Leveler | pack document failed", pack.collection, rowId, error);
                 }
             }
             addChoice(choice ?? choiceFromIndexRow(pack, row, itemType));
@@ -1892,7 +1892,7 @@ async function updateUndoChatMessageIfAllowed(message, actor, undoData) {
             });
             return;
         } catch (error) {
-            console.warn("Let Me Skill | ChatMessage konnte nicht aktualisiert werden.", error);
+            console.warn("Leveler | ChatMessage konnte nicht aktualisiert werden.", error);
         }
     }
     updateRenderedChatMessage(message.id, content);
@@ -2146,7 +2146,7 @@ function promptForm({ title, content, confirmLabel = "Übernehmen", width = 480,
                 },
                 close: () => finish(null),
             },
-            { width, classes: ["splittermond", "let-me-skill", "lms-dialog"] }
+            { width, classes: ["splittermond", "splittermond-leveler", "lms-dialog"] }
         ).render(true);
     });
 }
