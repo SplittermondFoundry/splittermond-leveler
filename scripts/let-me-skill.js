@@ -28,7 +28,7 @@ import {
 import { calculateSnappedPanelPosition, sameSnappedPanelPosition, shouldResetSheetStateOnClose, zIndexBelowAnchor } from "./panel-layout.js";
 
 const MODULE_ID = "splittermond-leveler";
-const MODULE_VERSION = "0.1.17";
+const MODULE_VERSION = "0.1.18";
 const FLAG_SCOPE = "splittermond-leveler";
 const FLAG_KEY = "advancementUndo";
 const ACTOR_UNDO_STATE_KEY = "advancementUndoState";
