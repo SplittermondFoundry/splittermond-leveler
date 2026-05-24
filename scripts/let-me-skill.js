@@ -1,6 +1,7 @@
 import {
     ATTRIBUTE_COSTS,
     ATTRIBUTE_DEFS,
+    buildPlannedItemData,
     choiceProgressionForSkill,
     createXpAdjustmentEntry,
     FREE_MASTERY_THRESHOLDS,
@@ -26,9 +27,10 @@ import {
     spellCost,
 } from "./advancement-rules.js";
 import { calculateSnappedPanelPosition, sameSnappedPanelPosition, shouldResetSheetStateOnClose, zIndexBelowAnchor } from "./panel-layout.js";
+import { captureScrollPositions, restoreScrollPositions } from "./sheet-scroll.js";
 
 const MODULE_ID = "splittermond-leveler";
-const MODULE_VERSION = "0.1.18";
+const MODULE_VERSION = "0.1.19";
 const FLAG_SCOPE = "splittermond-leveler";
 const FLAG_KEY = "advancementUndo";
 const ACTOR_UNDO_STATE_KEY = "advancementUndoState";
@@ -36,6 +38,13 @@ const DEFAULT_RESOURCE_MAX = 6;
 const sheetStates = new Map();
 const itemChoiceCache = new Map();
 const packIndexCache = new Map();
+const ITEM_CHOICE_INDEX_FIELDS = [
+    "system.skill",
+    "system.level",
+    "system.skillLevel",
+    "system.availableIn",
+    "system.multiSelectable",
+];
 const hasApplicationV2 = Boolean(globalThis.foundry?.applications?.api?.ApplicationV2);
 const PlanningApplicationBase = hasApplicationV2
     ? globalThis.foundry.applications.api.HandlebarsApplicationMixin(globalThis.foundry.applications.api.ApplicationV2)
@@ -1261,6 +1270,7 @@ async function promptMasteryEntry(actorState, plan, skillId, options = {}) {
     }
 
     const cost = options.free ? 0 : masteryCost(threshold);
+    const systemOverrides = { skill: skillId, level: threshold, availableIn: skill.label };
     return {
         id: cryptoRandomId(),
         parentId: options.parentId ?? null,
@@ -1272,7 +1282,8 @@ async function promptMasteryEntry(actorState, plan, skillId, options = {}) {
         cost,
         sourceUuid: choice?.uuid ?? null,
         itemData: choice ? await itemDataFromChoice(choice) : null,
-        fallbackSystem: { skill: skillId, level: threshold, availableIn: skill.label },
+        fallbackSystem: systemOverrides,
+        systemOverrides,
         summary: `${options.free ? "Kostenfreie Meisterschaft" : "Meisterschaft"} ${name} (${skill.label}, Schwelle ${threshold})`,
     };
 }
@@ -1318,6 +1329,7 @@ async function promptSpellEntry(actorState, plan, skillId, options = {}) {
     }
 
     const cost = options.free ? 0 : spellCost(grade);
+    const systemOverrides = { skill: skillId, skillLevel: grade, availableIn: skill.label };
     return {
         id: cryptoRandomId(),
         parentId: options.parentId ?? null,
@@ -1330,9 +1342,7 @@ async function promptSpellEntry(actorState, plan, skillId, options = {}) {
         sourceUuid: choice?.uuid ?? null,
         itemData: choice ? await itemDataFromChoice(choice) : null,
         fallbackSystem: {
-            skill: skillId,
-            skillLevel: grade,
-            availableIn: skill.label,
+            ...systemOverrides,
             costs: "",
             difficulty: "",
             range: "",
@@ -1355,6 +1365,7 @@ async function promptSpellEntry(actorState, plan, skillId, options = {}) {
                 effectArea: false,
             },
         },
+        systemOverrides,
         summary: `${options.free ? "Kostenfreier Zauber" : "Zauber"} ${name} (${skill.label}, Grad ${grade})`,
     };
 }
@@ -1426,16 +1437,16 @@ async function collectAllItemChoices(itemType) {
             continue;
         }
         for (const row of packIndexRows(index).filter((item) => item.type === itemType)) {
-            let choice = null;
+            let choice = choiceFromIndexRow(pack, row, itemType);
             const rowId = row._id ?? row.id;
-            if (rowId && typeof pack.getDocument === "function") {
+            if (choiceNeedsDocument(choice, itemType) && rowId && typeof pack.getDocument === "function") {
                 try {
                     choice = choiceFromItem(await pack.getDocument(rowId), itemType);
                 } catch (error) {
                     console.warn("Leveler | pack document failed", pack.collection, rowId, error);
                 }
             }
-            addChoice(choice ?? choiceFromIndexRow(pack, row, itemType));
+            addChoice(choice);
         }
     }
     return choices;
@@ -1474,7 +1485,7 @@ function isItemPack(pack) {
 async function getCachedPackIndex(pack) {
     const cacheKey = pack.collection ?? pack.metadata?.id ?? pack.metadata?.label ?? String(pack);
     if (packIndexCache.has(cacheKey)) return packIndexCache.get(cacheKey);
-    const index = typeof pack.getIndex === "function" ? await pack.getIndex() : pack.index;
+    const index = typeof pack.getIndex === "function" ? await pack.getIndex({ fields: ITEM_CHOICE_INDEX_FIELDS }) : pack.index;
     packIndexCache.set(cacheKey, index);
     return index;
 }
@@ -1520,6 +1531,12 @@ function choiceFromIndexRow(pack, row, itemType) {
         availability: String(system.availableIn ?? ""),
         progression: progressionFromSystem(system, itemType),
     };
+}
+
+function choiceNeedsDocument(choice, itemType) {
+    if (!choice) return true;
+    if (itemType === "language") return false;
+    return !choice.skill && !choice.availability && !Number.isInteger(choice.progression);
 }
 
 function progressionFromSystem(system, itemType) {
@@ -1604,21 +1621,7 @@ async function applyPlan(app, actorState, sheetState) {
 }
 
 function buildItemData(entry) {
-    if (entry.itemData) {
-        const data = foundry.utils.deepClone(entry.itemData);
-        data.name = entry.name;
-        data.type = entry.itemType;
-        data.system = { ...(entry.fallbackSystem ?? {}), ...(data.system ?? {}) };
-        data.flags = data.flags ?? {};
-        data.flags[FLAG_SCOPE] = { entryId: entry.id };
-        return data;
-    }
-    return {
-        name: entry.name,
-        type: entry.itemType,
-        system: entry.fallbackSystem ?? {},
-        flags: { [FLAG_SCOPE]: { entryId: entry.id } },
-    };
+    return buildPlannedItemData(entry, { clone: foundry.utils.deepClone, flagScope: FLAG_SCOPE });
 }
 
 function baseUndoEntry(entry) {
@@ -2047,8 +2050,15 @@ function accumulate(map, key, value) {
 function rerenderSheet(app, actor) {
     const root = getRenderedSheetRoot(app) ?? getRenderedSheetRoot(actor?.sheet);
     if (!root) return;
+    const scrollSnapshot = captureScrollPositions(root);
     syncXpInputs(root, actor);
     enhanceSheet(app ?? actor.sheet, actor, root);
+    restoreScrollPositions(scrollSnapshot);
+    if (typeof globalThis.window?.requestAnimationFrame === "function") {
+        globalThis.window.requestAnimationFrame(() => restoreScrollPositions(scrollSnapshot));
+    } else if (typeof globalThis.window?.setTimeout === "function") {
+        globalThis.window.setTimeout(() => restoreScrollPositions(scrollSnapshot), 0);
+    }
 }
 
 function getRenderedSheetRoot(app) {

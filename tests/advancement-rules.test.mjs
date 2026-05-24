@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
     ATTRIBUTE_COSTS,
+    buildPlannedItemData,
     heldengradForSpent,
     masteryCost,
     maxMasteryThresholdForPoints,
@@ -106,8 +107,63 @@ assert.equal(itemChoiceMatchesSkill({ system: { availableIn: "Anfuehren 1" } }, 
 assert.equal(itemChoiceMatchesSkill({ system: { availableIn: "Anf\u00fchren 1" } }, "leadership", "Anfuehren"), true);
 assert.equal(itemChoiceMatchesSkill({ availability: "Anfuehren 1" }, "leadership", "Anfuehren"), true);
 assert.equal(itemChoiceMatchesSkill({ system: { availableIn: "melee 1" } }, "leadership", "Anfuehren"), false);
+assert.equal(
+    itemChoiceMatchesSkill(
+        { system: { skill: "arcanelore", availableIn: "naturemagic 4, transformationmagic 3" } },
+        "transformationmagic",
+        "Verwandlungsmagie"
+    ),
+    true
+);
 assert.equal(choiceProgressionForSkill({ system: { availableIn: "deathmagic 2", skillLevel: 0 } }, "spell", "deathmagic", "Todesmagie"), 2);
+assert.equal(
+    choiceProgressionForSkill(
+        { system: { skill: "arcanelore", availableIn: "naturemagic 4, transformationmagic 3", skillLevel: null } },
+        "spell",
+        "transformationmagic",
+        "Verwandlungsmagie"
+    ),
+    3
+);
 assert.equal(choiceProgressionForSkill({ availability: "Anfuehren 1", progression: 1 }, "mastery", "leadership", "Anfuehren"), 1);
 assert.equal(choiceProgressionForSkill({ system: { skill: "melee", level: 1 } }, "mastery", "leadership", "Anfuehren"), null);
+
+const plannedSpellItem = buildPlannedItemData(
+    {
+        id: "spell-entry",
+        itemType: "spell",
+        name: "Vogelform",
+        itemData: {
+            name: "Vogelform",
+            type: "spell",
+            system: {
+                availableIn: "naturemagic 4, transformationmagic 3",
+                skill: "arcanelore",
+                skillLevel: null,
+                costs: "K12V3",
+                spellType: "Gestalt, Tiere",
+            },
+            flags: { source: { imported: true } },
+        },
+        fallbackSystem: {
+            skill: "transformationmagic",
+            skillLevel: 3,
+            availableIn: "Verwandlungsmagie",
+            costs: "",
+        },
+        systemOverrides: {
+            skill: "transformationmagic",
+            skillLevel: 3,
+            availableIn: "Verwandlungsmagie",
+        },
+    },
+    { flagScope: "splittermond-leveler" }
+);
+assert.equal(plannedSpellItem.system.skill, "transformationmagic");
+assert.equal(plannedSpellItem.system.skillLevel, 3);
+assert.equal(plannedSpellItem.system.availableIn, "Verwandlungsmagie");
+assert.equal(plannedSpellItem.system.costs, "K12V3");
+assert.equal(plannedSpellItem.system.spellType, "Gestalt, Tiere");
+assert.deepEqual(plannedSpellItem.flags, { source: { imported: true }, "splittermond-leveler": { entryId: "spell-entry" } });
 
 console.log("advancement-rules tests passed");

@@ -256,6 +256,22 @@ export function mergeResourceEntry(entry, increment) {
     return entry;
 }
 
+export function buildPlannedItemData(entry, { clone = clonePlainData, flagScope = null } = {}) {
+    const data = entry.itemData ? clone(entry.itemData) : {};
+    data.name = entry.name;
+    data.type = entry.itemType;
+    data.system = {
+        ...(entry.fallbackSystem ?? {}),
+        ...(data.system ?? {}),
+        ...(entry.systemOverrides ?? {}),
+    };
+    if (flagScope) {
+        data.flags = data.flags ?? {};
+        data.flags[flagScope] = { ...(data.flags[flagScope] ?? {}), entryId: entry.id };
+    }
+    return data;
+}
+
 export function itemChoiceMatchesSkill(choice, skillId, skillLabel = "") {
     const normalizedSkillId = normalize(skillId);
     const normalizedSkillLabel = normalize(skillLabel);
@@ -320,4 +336,10 @@ function firstInteger(...values) {
         if (Number.isInteger(number)) return number;
     }
     return null;
+}
+
+function clonePlainData(data) {
+    if (data == null || typeof data !== "object") return data;
+    if (typeof structuredClone === "function") return structuredClone(data);
+    return JSON.parse(JSON.stringify(data));
 }
