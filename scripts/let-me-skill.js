@@ -4,11 +4,13 @@ import {
     buildPlannedItemData,
     choiceProgressionForSkill,
     createXpAdjustmentEntry,
+    duplicateSelectionState,
     FREE_MASTERY_THRESHOLDS,
     FREE_SPELL_THRESHOLDS,
     MAGIC_SCHOOLS,
     heldengradForSpent,
     heldengradLabel,
+    itemAllowsMultipleSelection,
     itemChoiceMatchesSkill,
     masteryCost,
     maxAttributeIncreasesForHeldengrad,
@@ -26,11 +28,12 @@ import {
     skillHeldengradRequirement,
     spellCost,
 } from "./advancement-rules.js";
+import { choiceMenuPlacement, choiceSelectHtml as dialogChoiceSelectHtml } from "./dialog-choice-select.js";
 import { calculateSnappedPanelPosition, sameSnappedPanelPosition, shouldResetSheetStateOnClose, zIndexBelowAnchor } from "./panel-layout.js";
 import { captureScrollPositions, restoreScrollPositions } from "./sheet-scroll.js";
 
 const MODULE_ID = "splittermond-leveler";
-const MODULE_VERSION = "0.1.19";
+const MODULE_VERSION = "0.1.20";
 const FLAG_SCOPE = "splittermond-leveler";
 const FLAG_KEY = "advancementUndo";
 const ACTOR_UNDO_STATE_KEY = "advancementUndoState";
@@ -797,19 +800,34 @@ function planningPanelHtml(actorState, sheetState) {
             ${
                 sheetState.plan.length
                     ? `<ol>${sheetState.plan
-                          .map(
-                              (entry) => `
+                          .map((entry) => {
+                              const duplicateState = duplicatePlanEntryState(actorState, sheetState.plan, entry);
+                              return `
                     <li data-entry-id="${entry.id}">
-                        <div>
+                        <div class="lms-plan-entry-main">
                             <strong>${escapeHtml(entry.summary)}</strong>
                             <span>${entry.cost > 0 ? `${entry.cost} XP` : "kostenfrei"}</span>
+                            ${
+                                duplicateState.warning
+                                    ? `<small class="lms-duplicate-warning"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i>${escapeHtml(duplicateState.warning)}</small>`
+                                    : ""
+                            }
                         </div>
-                        <button type="button" class="button-inline lms-remove-entry" title="Eintrag entfernen">
-                            <i class="fa fa-trash" aria-hidden="true"></i>
-                        </button>
+                        <div class="lms-plan-entry-actions">
+                            ${
+                                entry.sourceUuid
+                                    ? `<button type="button" class="button-inline lms-show-plan-item" data-source-uuid="${escapeHtml(entry.sourceUuid)}" title="Item anzeigen">
+                                <i class="fa fa-eye" aria-hidden="true"></i>
+                            </button>`
+                                    : ""
+                            }
+                            <button type="button" class="button-inline lms-remove-entry" title="Eintrag entfernen">
+                                <i class="fa fa-trash" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </li>
-                `
-                          )
+                `;
+                          })
                           .join("")}</ol>`
                     : `<p>Noch keine geplanten Steigerungen.</p>`
             }
@@ -838,6 +856,14 @@ function bindPlanningPanelListeners(root, app, actor, sheetState) {
             const entryId = button.closest("li")?.getAttribute("data-entry-id");
             removeEntryAndChildren(sheetState, entryId);
             rerenderSheet(app, actor);
+        });
+    });
+    root.querySelectorAll(".lms-show-plan-item").forEach((button) => {
+        button.addEventListener("click", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const uuid = button.getAttribute("data-source-uuid");
+            await runSafely(() => openItemDocument(uuid));
         });
     });
 }
@@ -1095,12 +1121,12 @@ async function addSpellEntry(app, actorState, sheetState, skillId, options) {
 }
 
 async function promptStrengthEntry(actorState, plan) {
-    const choices = await collectItemChoices("strength");
+    const choices = annotateDuplicateChoices(await collectItemChoices("strength"), actorState, plan, "strength");
     const data = await promptForm({
         title: "St\u00e4rke erwerben",
         content: `
             <div class="lms-dialog-grid">
-                ${choiceSelectHtml(choices)}
+                ${dialogChoiceSelectHtml(choices, { itemButton: true })}
                 <label><strong>Name</strong><input type="text" name="name" /></label>
                 <label><strong>Stufe</strong><select name="level"><option value="1">1</option><option value="2">2</option></select></label>
             </div>
@@ -1124,6 +1150,7 @@ async function promptStrengthEntry(actorState, plan) {
         name,
         cost: level * 7,
         sourceUuid: choice?.uuid ?? null,
+        multiSelectable: itemAllowsMultipleSelection({ itemType: "strength", system: choice?.system }),
         itemData: choice ? await itemDataFromChoice(choice) : null,
         fallbackSystem: { level, quantity: 1 },
         summary: `St\u00e4rke ${name} (Stufe ${level})`,
@@ -1136,7 +1163,7 @@ async function promptLanguageEntry() {
         title: "Sprache erwerben",
         content: `
             <div class="lms-dialog-grid">
-                ${choiceSelectHtml(choices)}
+                ${dialogChoiceSelectHtml(choices, { itemButton: false })}
                 <label><strong>Name</strong><input type="text" name="name" /></label>
             </div>
         `,
@@ -1233,13 +1260,19 @@ async function promptResourceEntry(actorState, plan) {
 async function promptMasteryEntry(actorState, plan, skillId, options = {}) {
     const skill = actorState.skills[skillId];
     const maxThreshold = options.fixedMaxThreshold ?? maxMasteryThresholdForPoints(projectedSkillPoints(actorState, plan, skillId));
-    const choices = choicesForSkillProgression(
-        await collectItemChoices("mastery", (choice) => itemMatchesSkill(choice, skillId)),
+    const choices = annotateDuplicateChoices(
+        choicesForSkillProgression(
+            await collectItemChoices("mastery", (choice) => itemMatchesSkill(choice, skillId)),
+            "mastery",
+            skillId,
+            skill.label,
+            maxThreshold,
+            (threshold) => options.free || masteryCost(threshold) <= projectedFree(actorState, plan)
+        ),
+        actorState,
+        plan,
         "mastery",
-        skillId,
-        skill.label,
-        maxThreshold,
-        (threshold) => options.free || masteryCost(threshold) <= projectedFree(actorState, plan)
+        skillId
     );
     const thresholdOptions = Array.from({ length: maxThreshold }, (_, index) => index + 1)
         .map((threshold) => `<option value="${threshold}">${threshold}</option>`)
@@ -1250,7 +1283,7 @@ async function promptMasteryEntry(actorState, plan, skillId, options = {}) {
         content: `
             <div class="lms-dialog-grid">
                 <p>${escapeHtml(skill.label)}: maximal Schwelle ${maxThreshold}</p>
-                ${choiceSelectHtml(choices)}
+                ${dialogChoiceSelectHtml(choices, { itemButton: true })}
                 <label><strong>Name</strong><input type="text" name="name" /></label>
                 <label><strong>Schwelle</strong><select name="threshold">${thresholdOptions}</select></label>
             </div>
@@ -1281,6 +1314,7 @@ async function promptMasteryEntry(actorState, plan, skillId, options = {}) {
         level: threshold,
         cost,
         sourceUuid: choice?.uuid ?? null,
+        multiSelectable: itemAllowsMultipleSelection({ itemType: "mastery", system: choice?.system }),
         itemData: choice ? await itemDataFromChoice(choice) : null,
         fallbackSystem: systemOverrides,
         systemOverrides,
@@ -1291,13 +1325,19 @@ async function promptMasteryEntry(actorState, plan, skillId, options = {}) {
 async function promptSpellEntry(actorState, plan, skillId, options = {}) {
     const skill = actorState.skills[skillId];
     const maxGrade = options.fixedMaxGrade ?? maxSpellGradeForPoints(projectedSkillPoints(actorState, plan, skillId));
-    const choices = choicesForSkillProgression(
-        await collectItemChoices("spell", (choice) => itemMatchesSkill(choice, skillId)),
+    const choices = annotateDuplicateChoices(
+        choicesForSkillProgression(
+            await collectItemChoices("spell", (choice) => itemMatchesSkill(choice, skillId)),
+            "spell",
+            skillId,
+            skill.label,
+            maxGrade,
+            (grade) => options.free || spellCost(grade) <= projectedFree(actorState, plan)
+        ),
+        actorState,
+        plan,
         "spell",
-        skillId,
-        skill.label,
-        maxGrade,
-        (grade) => options.free || spellCost(grade) <= projectedFree(actorState, plan)
+        skillId
     );
     const gradeOptions = Array.from({ length: maxGrade + 1 }, (_, grade) => grade)
         .filter((grade) => options.free || spellCost(grade) <= projectedFree(actorState, plan))
@@ -1309,7 +1349,7 @@ async function promptSpellEntry(actorState, plan, skillId, options = {}) {
         content: `
             <div class="lms-dialog-grid">
                 <p>${escapeHtml(skill.label)}: maximal Grad ${maxGrade}</p>
-                ${choiceSelectHtml(choices)}
+                ${dialogChoiceSelectHtml(choices, { itemButton: true })}
                 <label><strong>Name</strong><input type="text" name="name" /></label>
                 <label><strong>Grad</strong><select name="grade">${gradeOptions}</select></label>
             </div>
@@ -1340,6 +1380,7 @@ async function promptSpellEntry(actorState, plan, skillId, options = {}) {
         level: grade,
         cost,
         sourceUuid: choice?.uuid ?? null,
+        multiSelectable: itemAllowsMultipleSelection({ itemType: "spell", system: choice?.system }),
         itemData: choice ? await itemDataFromChoice(choice) : null,
         fallbackSystem: {
             ...systemOverrides,
@@ -1370,35 +1411,121 @@ async function promptSpellEntry(actorState, plan, skillId, options = {}) {
     };
 }
 
-function choiceSelectHtml(choices) {
-    if (!choices.length) {
-        return `<p class="lms-muted">Keine passenden Bibliothekseinträge gefunden. Freie Eingabe verwenden.</p>`;
-    }
-    return `
-        <label>
-            <strong>Bibliothek</strong>
-            <select name="choice">
-                <option value="">Freie Eingabe</option>
-                ${choices.map((choice, index) => `<option value="${index}">${escapeHtml(choiceLabel(choice))}</option>`).join("")}
-            </select>
-        </label>
-    `;
-}
-
-function choiceLabel(choice) {
-    if (!Number.isInteger(choice?.selectionProgression)) return choice?.name ?? "";
-    const label = choice.itemType === "spell" ? "Grad" : choice.itemType === "strength" ? "Stufe" : "Schwelle";
-    return `${choice.name} (${label} ${choice.selectionProgression})`;
-}
-
 function bindChoiceSelect(root, choices) {
     const select = root.querySelector('select[name="choice"]');
+    const hiddenInput = root.querySelector('input[name="choice"]');
     const nameInput = root.querySelector('input[name="name"]');
-    if (!(select instanceof HTMLSelectElement) || !(nameInput instanceof HTMLInputElement)) return;
-    select.addEventListener("change", () => {
-        const choice = choices[Number.parseInt(select.value, 10)] ?? null;
-        if (choice) nameInput.value = choice.name;
+    const picker = root.querySelector("[data-lms-choice-picker]");
+    const trigger = picker?.querySelector(".lms-choice-trigger");
+    const triggerLabel = picker?.querySelector(".lms-choice-trigger-label");
+    const menu = picker?.querySelector(".lms-choice-menu");
+    const selectedShowButton = root.querySelector(".lms-choice-selected-show-item");
+    const warning = root.querySelector(".lms-choice-warning");
+    if (!(nameInput instanceof HTMLInputElement)) return;
+
+    const choiceByValue = (value) => choices[Number.parseInt(value, 10)] ?? null;
+    const currentValue = () => {
+        if (select instanceof HTMLSelectElement) return select.value;
+        if (hiddenInput instanceof HTMLInputElement) return hiddenInput.value;
+        return "";
+    };
+    const selectedChoice = () => choiceByValue(currentValue());
+    const refreshChoiceControls = () => {
+        const value = currentValue();
+        const choice = selectedChoice();
+        if (triggerLabel instanceof HTMLElement && menu instanceof HTMLElement) {
+            const selectedRow = Array.from(menu.querySelectorAll(".lms-choice-row")).find(
+                (row) => row.getAttribute("data-choice-value") === value
+            );
+            triggerLabel.textContent = selectedRow?.querySelector(".lms-choice-row-select span")?.textContent ?? "Freie Eingabe";
+        }
+        if (selectedShowButton instanceof HTMLButtonElement) {
+            selectedShowButton.disabled = !choice?.uuid;
+            selectedShowButton.toggleAttribute("data-source-uuid", Boolean(choice?.uuid));
+            if (choice?.uuid) {
+                selectedShowButton.setAttribute("data-source-uuid", choice.uuid);
+                selectedShowButton.title = `Item anzeigen: ${choice.name}`;
+            } else {
+                selectedShowButton.title = "Ausgew\u00e4hltes Item anzeigen";
+            }
+        }
+        if (warning instanceof HTMLElement) {
+            warning.hidden = !choice?.duplicateWarning;
+            warning.textContent = choice?.duplicateWarning ?? "";
+        }
+        menu?.querySelectorAll?.(".lms-choice-row").forEach((row) => {
+            const selected = row.getAttribute("data-choice-value") === value;
+            row.classList.toggle("is-selected", selected);
+            row.setAttribute("aria-selected", selected ? "true" : "false");
+        });
+    };
+    const setValue = (value, { updateName = false } = {}) => {
+        if (select instanceof HTMLSelectElement) select.value = value;
+        if (hiddenInput instanceof HTMLInputElement) hiddenInput.value = value;
+        const choice = choiceByValue(value);
+        if (updateName && choice) nameInput.value = choice.name;
+        refreshChoiceControls();
+    };
+    const setOpen = (open) => {
+        if (!(trigger instanceof HTMLButtonElement) || !(menu instanceof HTMLElement)) return;
+        if (open) positionChoiceMenu(root, picker, trigger, menu);
+        menu.hidden = !open;
+        trigger.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+
+    select?.addEventListener("change", () => {
+        setValue(select.value, { updateName: true });
     });
+    trigger?.addEventListener("click", (event) => {
+        event.preventDefault();
+        setOpen(menu?.hidden ?? true);
+    });
+    trigger?.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") setOpen(false);
+    });
+    selectedShowButton?.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!(selectedShowButton instanceof HTMLButtonElement) || selectedShowButton.disabled) return;
+        await runSafely(() => openItemDocument(selectedShowButton.getAttribute("data-source-uuid")));
+    });
+    menu?.addEventListener("click", async (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const showButton = target?.closest?.(".lms-choice-row-show-item");
+        if (showButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            await runSafely(() => openItemDocument(showButton.getAttribute("data-source-uuid")));
+            return;
+        }
+
+        const selectButton = target?.closest?.(".lms-choice-row-select");
+        if (!selectButton) return;
+        event.preventDefault();
+        setValue(selectButton.getAttribute("data-choice-value") ?? "", { updateName: true });
+        setOpen(false);
+    });
+    root.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!picker?.contains?.(target)) setOpen(false);
+    });
+    root.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") setOpen(false);
+    });
+    setValue(currentValue());
+}
+
+function positionChoiceMenu(root, picker, trigger, menu) {
+    if (!(picker instanceof HTMLElement) || !(trigger instanceof HTMLElement) || !(menu instanceof HTMLElement)) return;
+    const boundary = root.closest(".window-content, .dialog, .application, .app, .window-app") ?? document.documentElement;
+    if (!(boundary instanceof HTMLElement)) return;
+
+    const placement = choiceMenuPlacement({
+        triggerRect: trigger.getBoundingClientRect(),
+        boundaryRect: boundary.getBoundingClientRect(),
+    });
+    picker.classList.toggle("lms-choice-opens-up", placement.direction === "up");
+    menu.style.setProperty("--lms-choice-menu-max-height", `${placement.maxHeight}px`);
 }
 
 async function collectItemChoices(itemType, filter = null) {
@@ -1455,6 +1582,32 @@ async function collectAllItemChoices(itemType) {
 function itemMatchesSkill(choice, skillId) {
     const skill = skillDefById(skillId);
     return itemChoiceMatchesSkill(choice, skillId, skill?.label?.() ?? "");
+}
+
+function annotateDuplicateChoices(choices, actorState, plan, itemType, skillId = null) {
+    const existingItems = actorItems(actorState.actor);
+    return choices.map((choice) => {
+        const target = {
+            ...choice,
+            itemType,
+            skillId,
+            sourceUuid: choice.uuid ?? null,
+        };
+        const duplicateState = duplicateSelectionState(target, existingItems, plan);
+        return {
+            ...choice,
+            itemType,
+            skillId,
+            sourceUuid: choice.uuid ?? null,
+            duplicateWarning: duplicateState.warning,
+            duplicateKnown: duplicateState.known,
+            duplicatePlanned: duplicateState.planned,
+        };
+    });
+}
+
+function duplicatePlanEntryState(actorState, plan, entry) {
+    return duplicateSelectionState(entry, actorItems(actorState.actor), plan, { ignoreEntryId: entry.id });
 }
 
 function choicesForSkillProgression(choices, itemType, skillId, skillLabel, maxValue, canAfford = null) {
@@ -1554,6 +1707,21 @@ async function itemDataFromChoice(choice) {
     delete data.folder;
     delete data.sort;
     return data;
+}
+
+async function openItemDocument(uuid) {
+    if (!uuid || typeof fromUuid !== "function") return notifyError("Item nicht gefunden.");
+    const item = await fromUuid(uuid);
+    if (!item) return notifyError("Item nicht gefunden.");
+    if (typeof item.sheet?.render === "function") {
+        item.sheet.render(true);
+        return;
+    }
+    if (typeof item.render === "function") {
+        item.render(true);
+        return;
+    }
+    notifyError("Item kann nicht angezeigt werden.");
 }
 
 async function applyPlan(app, actorState, sheetState) {
@@ -2010,6 +2178,13 @@ function cryptoRandomId() {
 function getActorItemById(actor, itemId) {
     if (!actor?.items || !itemId) return null;
     return actor.items.get?.(itemId) ?? actor.items.find?.((item) => item.id === itemId) ?? null;
+}
+
+function actorItems(actor) {
+    if (!actor?.items) return [];
+    if (typeof actor.items.filter === "function") return actor.items.filter(() => true);
+    if (typeof actor.items.values === "function") return Array.from(actor.items.values());
+    return Array.isArray(actor.items) ? actor.items : [];
 }
 
 function findResourceItem(actor, name) {

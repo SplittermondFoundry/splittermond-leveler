@@ -216,6 +216,78 @@ export function normalize(value) {
         .replace(/[^a-z0-9]+/g, "");
 }
 
+export function itemAllowsMultipleSelection(item) {
+    const itemType = item?.itemType ?? item?.type;
+    if (itemType !== "mastery") return false;
+    return booleanFlagValue(item?.system?.multiSelectable ?? item?.multiSelectable ?? item?.itemData?.system?.multiSelectable);
+}
+
+export function itemsDuplicate(left, right) {
+    const leftType = left?.itemType ?? left?.type;
+    const rightType = right?.itemType ?? right?.type;
+    if (!duplicateCheckedItemType(leftType) || leftType !== rightType) return false;
+
+    const leftUuid = duplicateSourceUuid(left);
+    const rightUuid = duplicateSourceUuid(right);
+    if (leftUuid && rightUuid && leftUuid === rightUuid) return true;
+
+    const leftName = normalize(left?.name);
+    const rightName = normalize(right?.name);
+    if (!leftName || leftName !== rightName) return false;
+    if (leftType === "strength") return true;
+
+    const leftSkill = duplicateSkillId(left);
+    const rightSkill = duplicateSkillId(right);
+    return !leftSkill || !rightSkill || leftSkill === rightSkill;
+}
+
+export function duplicateSelectionState(target, existingItems = [], plannedEntries = [], { ignoreEntryId = null } = {}) {
+    const itemType = target?.itemType ?? target?.type;
+    if (!duplicateCheckedItemType(itemType) || itemAllowsMultipleSelection(target)) {
+        return { duplicate: false, known: false, planned: false, warning: null };
+    }
+
+    const known = existingItems.some((item) => itemsDuplicate(target, item));
+    const planned = plannedEntries.some((entry) => {
+        if (entry?.id && entry.id === ignoreEntryId) return false;
+        if (entry?.type !== "item") return false;
+        return itemsDuplicate(target, entry);
+    });
+    return {
+        duplicate: known || planned,
+        known,
+        planned,
+        warning: duplicateWarning(itemType, known, planned),
+    };
+}
+
+function duplicateCheckedItemType(itemType) {
+    return itemType === "mastery" || itemType === "strength" || itemType === "spell";
+}
+
+function booleanFlagValue(value) {
+    if (value === true || value === 1) return true;
+    if (value === false || value === 0 || value == null) return false;
+    return ["true", "1", "yes", "on", "ja"].includes(String(value).trim().toLowerCase());
+}
+
+function duplicateSourceUuid(item) {
+    return item?.sourceUuid ?? item?.uuid ?? null;
+}
+
+function duplicateSkillId(item) {
+    return normalize(item?.skillId ?? item?.system?.skill ?? item?.itemData?.system?.skill ?? "");
+}
+
+function duplicateWarning(itemType, known, planned) {
+    if (!known && !planned) return null;
+    const subject =
+        itemType === "spell" ? "Dieser Zauber" : itemType === "strength" ? "Diese St\u00e4rke" : "Diese Meisterschaft";
+    if (known && planned) return `${subject} ist bereits bekannt und geplant.`;
+    if (known) return `${subject} ist bereits bekannt.`;
+    return `${subject} ist bereits geplant.`;
+}
+
 export function skillDefById(id) {
     return SKILL_DEFS.find((skill) => skill.id === id) ?? null;
 }

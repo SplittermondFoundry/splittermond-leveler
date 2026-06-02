@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import {
     ATTRIBUTE_COSTS,
     buildPlannedItemData,
+    duplicateSelectionState,
     heldengradForSpent,
+    itemAllowsMultipleSelection,
+    itemsDuplicate,
     masteryCost,
     maxMasteryThresholdForPoints,
     maxSkillPointsForHeldengrad,
@@ -127,6 +130,61 @@ assert.equal(
 );
 assert.equal(choiceProgressionForSkill({ availability: "Anfuehren 1", progression: 1 }, "mastery", "leadership", "Anfuehren"), 1);
 assert.equal(choiceProgressionForSkill({ system: { skill: "melee", level: 1 } }, "mastery", "leadership", "Anfuehren"), null);
+
+assert.equal(itemAllowsMultipleSelection({ itemType: "mastery", system: { multiSelectable: true } }), true);
+assert.equal(itemAllowsMultipleSelection({ itemType: "mastery", system: { multiSelectable: "on" } }), true);
+assert.equal(itemAllowsMultipleSelection({ itemType: "mastery", system: { multiSelectable: false } }), false);
+assert.equal(itemAllowsMultipleSelection({ itemType: "spell", system: { multiSelectable: true } }), false);
+
+assert.equal(
+    itemsDuplicate(
+        { itemType: "mastery", name: "Koordinator", skillId: "leadership" },
+        { type: "mastery", name: "Koordinator", system: { skill: "leadership" } }
+    ),
+    true
+);
+assert.equal(
+    itemsDuplicate(
+        { itemType: "mastery", name: "Koordinator", skillId: "leadership" },
+        { type: "mastery", name: "Koordinator", system: { skill: "melee" } }
+    ),
+    false
+);
+assert.equal(
+    itemsDuplicate({ itemType: "strength", name: "Richtungssinn" }, { type: "strength", name: "Richtungssinn", system: { level: 1 } }),
+    true
+);
+
+const knownDuplicateState = duplicateSelectionState(
+    { itemType: "spell", name: "Vogelform", skillId: "transformationmagic" },
+    [{ type: "spell", name: "Vogelform", system: { skill: "transformationmagic" } }],
+    []
+);
+assert.equal(knownDuplicateState.duplicate, true);
+assert.equal(knownDuplicateState.known, true);
+assert.equal(knownDuplicateState.planned, false);
+assert.equal(knownDuplicateState.warning, "Dieser Zauber ist bereits bekannt.");
+
+const plannedDuplicateState = duplicateSelectionState(
+    { id: "planned-2", itemType: "strength", name: "Richtungssinn" },
+    [],
+    [
+        { id: "planned-1", type: "item", itemType: "strength", name: "Richtungssinn" },
+        { id: "planned-2", type: "item", itemType: "strength", name: "Richtungssinn" },
+    ],
+    { ignoreEntryId: "planned-2" }
+);
+assert.equal(plannedDuplicateState.duplicate, true);
+assert.equal(plannedDuplicateState.known, false);
+assert.equal(plannedDuplicateState.planned, true);
+assert.equal(plannedDuplicateState.warning, "Diese St\u00e4rke ist bereits geplant.");
+
+const repeatableMasteryDuplicateState = duplicateSelectionState(
+    { itemType: "mastery", name: "Koordinator", skillId: "leadership", system: { multiSelectable: true } },
+    [{ type: "mastery", name: "Koordinator", system: { skill: "leadership" } }],
+    []
+);
+assert.equal(repeatableMasteryDuplicateState.duplicate, false);
 
 const plannedSpellItem = buildPlannedItemData(
     {

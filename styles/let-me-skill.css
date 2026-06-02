@@ -141,10 +141,36 @@
     gap: 2px;
 }
 
+.lms-planning-panel .lms-plan-list li .lms-plan-entry-actions {
+    display: inline-flex;
+    gap: 3px;
+    align-items: flex-start;
+}
+
+.lms-planning-panel .lms-plan-list li .lms-plan-entry-actions button {
+    min-width: 22px;
+    min-height: 22px;
+}
+
 .lms-planning-panel .lms-plan-list li span,
 .lms-planning-panel .lms-plan-list p {
     font-size: 12px;
     opacity: 0.86;
+}
+
+.lms-planning-panel .lms-duplicate-warning,
+.lms-dialog-form .lms-choice-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    line-height: 1.2;
+    color: #7a321f;
+    opacity: 0.95;
+}
+
+.lms-dialog-form .lms-choice-warning[hidden] {
+    display: none;
 }
 
 .lms-planning-panel .lms-panel-actions {
@@ -504,9 +530,161 @@
     gap: 4px;
 }
 
+.lms-dialog-form .lms-choice-field {
+    position: relative;
+    display: grid;
+    gap: 4px;
+}
+
 .lms-dialog-form input,
 .lms-dialog-form select {
     width: 100%;
+}
+
+.lms-dialog-form .lms-choice-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 30px;
+    gap: 4px;
+    align-items: center;
+}
+
+.lms-dialog-form .lms-choice-control.lms-choice-control-no-button {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.lms-dialog-form .lms-choice-picker {
+    position: relative;
+    display: block;
+    min-width: 0;
+}
+
+.lms-dialog-form .lms-choice-trigger {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18px;
+    gap: 4px;
+    align-items: center;
+    width: 100%;
+    min-height: 28px;
+    padding: 0 5px;
+    text-align: left;
+}
+
+.lms-dialog-form .lms-choice-trigger-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lms-dialog-form .lms-choice-menu {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 2px);
+    left: 0;
+    right: auto;
+    display: grid;
+    width: 100%;
+    max-width: 100%;
+    max-height: var(--lms-choice-menu-max-height, calc(28px * 8));
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
+    scrollbar-gutter: stable;
+    border: 1px solid rgba(0, 0, 0, 0.5);
+    background: #efeddc;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.lms-dialog-form .lms-choice-picker.lms-choice-opens-up .lms-choice-menu {
+    top: auto;
+    bottom: calc(100% + 2px);
+}
+
+.lms-dialog-form .lms-choice-menu[hidden] {
+    display: none;
+}
+
+.lms-dialog-form .lms-choice-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 28px;
+    box-sizing: border-box;
+}
+
+.lms-dialog-form .lms-choice-row.lms-choice-row-has-item {
+    grid-template-columns: minmax(0, 1fr) 30px;
+}
+
+.lms-dialog-form .lms-choice-row.is-selected {
+    background: #1f65d6;
+}
+
+.lms-dialog-form .lms-choice-row.is-selected .lms-choice-row-select {
+    color: #fff;
+}
+
+.lms-dialog-form .lms-choice-row:hover,
+.lms-dialog-form .lms-choice-row:focus-within {
+    background: #d8ccb2;
+}
+
+.lms-dialog-form .lms-choice-row:hover .lms-choice-row-select,
+.lms-dialog-form .lms-choice-row:focus-within .lms-choice-row-select {
+    color: #1b130d;
+}
+
+.lms-dialog-form .lms-choice-row.is-selected:hover,
+.lms-dialog-form .lms-choice-row.is-selected:focus-within {
+    background: #1f65d6;
+}
+
+.lms-dialog-form .lms-choice-row.is-selected:hover .lms-choice-row-select,
+.lms-dialog-form .lms-choice-row.is-selected:focus-within .lms-choice-row-select {
+    color: #fff;
+}
+
+.lms-dialog-form .lms-choice-row-select {
+    width: 100%;
+    min-width: 0;
+    height: 28px;
+    margin: 0;
+    padding: 0 6px;
+    overflow: hidden;
+    box-sizing: border-box;
+    color: #1b130d;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    text-shadow: none;
+}
+
+.lms-dialog-form .lms-choice-row-select span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lms-dialog-form .lms-choice-row-show-item,
+.lms-dialog-form .lms-choice-show-item {
+    width: 30px;
+    height: 28px;
+    min-width: 30px;
+    max-width: 30px;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.lms-dialog-form option.lms-duplicate-choice,
+.lms-dialog-form .lms-choice-row.lms-duplicate-choice .lms-choice-row-select {
+    color: rgba(27, 19, 13, 0.48);
+    background: rgba(122, 50, 31, 0.08);
 }
 
 .lms-dialog-form .lms-number-stepper {
