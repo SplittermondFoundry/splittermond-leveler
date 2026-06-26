@@ -1863,20 +1863,13 @@ function renderUndoChatContentV2(actor, entries) {
     const activeEntries = entries.filter((entry) => !entry.undone);
     const isXpAdjustment = entries.every((entry) => entry.type === "xp-adjustment");
     const title = isXpAdjustment ? "XP hinzugefügt" : "Steigerungen";
+    const canUndo = canUndoActorChanges(actor);
     const lines = entries
         .map(
             (entry) => `
                 <li class="${entry.undone ? "lms-chat-undone" : ""}">
                     <span><strong>${escapeHtml(entry.summary)}</strong><small>${escapeHtml(entry.note ?? (entry.cost > 0 ? `${entry.cost} XP` : "kostenfrei"))}</small></span>
-                    ${
-                        entry.undone
-                            ? isXpAdjustment
-                              ? ""
-                              : `<button type="button" disabled>Rückgängig</button>`
-                            : isXpAdjustment
-                              ? ""
-                              : `<button type="button" data-lms-undo-entry="${escapeHtml(entry.id)}">Rückgängig</button>`
-                    }
+                    ${renderUndoEntryAction(entry, isXpAdjustment, canUndo)}
                 </li>
             `
         )
@@ -1885,13 +1878,33 @@ function renderUndoChatContentV2(actor, entries) {
         <section class="lms-chat-summary">
             <header><strong>${escapeHtml(actor.name)}</strong><span>${title}</span></header>
             <ol>${lines}</ol>
-            ${
-                activeEntries.length
-                    ? `<button type="button" data-lms-undo-all="true">${isXpAdjustment ? "Rückgängig machen" : "Alle verbleibenden Positionen rückgängig machen"}</button>`
-                    : `<button type="button" disabled>${isXpAdjustment ? "Bereits rückgängig gemacht" : "Alle Positionen rückgängig gemacht"}</button>`
-            }
+            ${renderUndoSummaryAction(activeEntries.length > 0, isXpAdjustment, canUndo)}
         </section>
     `;
+}
+
+function renderUndoEntryAction(entry, isXpAdjustment, canUndo) {
+    if (!canUndo || isXpAdjustment) return "";
+    if (entry.undone) return `<button type="button" disabled>Rückgängig</button>`;
+    return `<button type="button" data-lms-undo-entry="${escapeHtml(entry.id)}">Rückgängig</button>`;
+}
+
+function renderUndoSummaryAction(hasActiveEntries, isXpAdjustment, canUndo) {
+    const doneLabel = isXpAdjustment ? "Bereits rückgängig gemacht" : "Alle Positionen rückgängig gemacht";
+    if (hasActiveEntries) {
+        if (!canUndo) return "";
+        const label = isXpAdjustment ? "Rückgängig machen" : "Alle verbleibenden Positionen rückgängig machen";
+        return `<button type="button" data-lms-undo-all="true">${label}</button>`;
+    }
+    if (canUndo) return `<button type="button" disabled>${doneLabel}</button>`;
+    return `<p><em>${doneLabel}</em></p>`;
+}
+
+function canUndoActorChanges(actor, user = globalThis.game?.user) {
+    if (!actor || !user) return false;
+    if (user.isGM) return true;
+    if (typeof actor.canUserModify === "function") return actor.canUserModify(user, "update");
+    return Boolean(actor.isOwner);
 }
 
 function refreshUndoChatMessageDisplay(app, html, data) {
@@ -1984,7 +1997,7 @@ async function undoFromMessage(messageId, entryId = null) {
 
     const actor = typeof fromUuid === "function" ? await fromUuid(undoData.actorUuid) : game.actors.get(undoData.actorId);
     if (!actor) return notifyError("Charakter nicht gefunden.");
-    if (!game.user.isGM && !actor.isOwner) return notifyError("Dir fehlen die Rechte für diese Änderung.");
+    if (!canUndoActorChanges(actor)) return notifyError("Dir fehlen die Rechte für diese Änderung.");
 
     applyActorUndoState(actor, messageId, undoData.entries);
 
@@ -2336,3 +2349,5 @@ function promptForm({ title, content, confirmLabel = "Übernehmen", width = 480,
         ).render(true);
     });
 }
+
+export { renderUndoChatContentV2 };
