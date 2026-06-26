@@ -30,6 +30,7 @@ import {
     spellCost,
 } from "./advancement-rules.js";
 import { choiceMenuPlacement, choiceSelectHtml as dialogChoiceSelectHtml } from "./dialog-choice-select.js";
+import { dialogFormHtml, promptDialogApplicationOptions, promptDialogOptions } from "./dialog-window.js";
 import { calculateSnappedPanelPosition, sameSnappedPanelPosition, shouldResetSheetStateOnClose, zIndexBelowAnchor } from "./panel-layout.js";
 import { captureScrollPositions, restoreScrollPositions } from "./sheet-scroll.js";
 
@@ -281,6 +282,82 @@ class AdvancementPlanningWindow extends PlanningApplicationBase {
             this.sheetState.active = false;
             rerenderSheet(this.sheetApp, this.actor);
         }
+        return super.close(options);
+    }
+}
+
+class LevelerPromptWindow extends PlanningApplicationBase {
+    constructor({ title, content, confirmLabel, width, render, resolve }) {
+        super(promptDialogApplicationOptions({ title, width }));
+        this.dialogContent = content;
+        this.confirmLabel = confirmLabel;
+        this.renderCallback = render;
+        this.resolvePrompt = resolve;
+        this.resolved = false;
+    }
+
+    static DEFAULT_OPTIONS = promptDialogApplicationOptions({ title: "", width: 480 });
+
+    static PARTS = {
+        content: {
+            template: `modules/${MODULE_ID}/templates/dialog-form.hbs`,
+            scrollable: [".lms-dialog-body"],
+        },
+    };
+
+    async _prepareContext(options) {
+        const context = typeof super._prepareContext === "function" ? await super._prepareContext(options) : {};
+        return {
+            ...context,
+            content: dialogFormHtml({ content: this.dialogContent, confirmLabel: this.confirmLabel }),
+        };
+    }
+
+    async _renderInner() {
+        const element = document.createElement("section");
+        element.innerHTML = dialogFormHtml({ content: this.dialogContent, confirmLabel: this.confirmLabel });
+        return $(element);
+    }
+
+    activateListeners(html) {
+        super.activateListeners(html);
+        this.bindPromptListeners(htmlRoot(html));
+    }
+
+    async _onRender(context, options) {
+        if (typeof super._onRender === "function") await super._onRender(context, options);
+        this.bindPromptListeners(this.element instanceof HTMLElement ? this.element : null);
+    }
+
+    bindPromptListeners(element) {
+        const root = element?.querySelector?.(".lms-dialog-form");
+        if (!root) return;
+        if (root.dataset.lmsPromptBound === "true") return;
+        root.dataset.lmsPromptBound = "true";
+        root.querySelector("[data-lms-dialog-confirm]")?.addEventListener("click", () => this.confirm());
+        root.querySelector("[data-lms-dialog-cancel]")?.addEventListener("click", () => this.cancel());
+        if (this.renderCallback) this.renderCallback(root);
+    }
+
+    confirm() {
+        const form = this.element instanceof HTMLFormElement ? this.element : this.element?.closest?.("form") ?? null;
+        this.finish(form ? Object.fromEntries(new FormData(form).entries()) : null);
+        this.close();
+    }
+
+    cancel() {
+        this.finish(null);
+        this.close();
+    }
+
+    finish(value) {
+        if (this.resolved) return;
+        this.resolved = true;
+        this.resolvePrompt(value);
+    }
+
+    async close(options = {}) {
+        this.finish(null);
         return super.close(options);
     }
 }
@@ -2313,6 +2390,12 @@ function escapeHtml(value) {
 }
 
 function promptForm({ title, content, confirmLabel = "Übernehmen", width = 480, render = null }) {
+    if (hasApplicationV2) {
+        return new Promise((resolve) => {
+            new LevelerPromptWindow({ title, content, confirmLabel, width, render, resolve }).render(true);
+        });
+    }
+
     return new Promise((resolve) => {
         let resolved = false;
         const finish = (value) => {
@@ -2345,7 +2428,7 @@ function promptForm({ title, content, confirmLabel = "Übernehmen", width = 480,
                 },
                 close: () => finish(null),
             },
-            { width, classes: ["splittermond", "splittermond-leveler", "lms-dialog"] }
+            promptDialogOptions(width)
         ).render(true);
     });
 }

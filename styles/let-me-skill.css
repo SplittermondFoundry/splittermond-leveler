@@ -18,6 +18,12 @@
     min-width: 300px;
 }
 
+.lms-dialog-window {
+    min-width: 360px;
+    min-height: 220px;
+}
+
+.lms-dialog-window:not(form.application),
 .lms-planning-window:not(form.application) {
     color: var(--color-text-secondary, #1b130d);
     background: var(--splittermond-background-parchment, url(/systems/splittermond/images/parchment.jpg) repeat);
@@ -28,6 +34,7 @@
     border-image-repeat: round;
 }
 
+.lms-dialog-window:not(form.application) .window-content,
 .lms-planning-window:not(form.application) .window-content {
     margin: 5px;
     margin-top: 0;
@@ -39,6 +46,10 @@
     border-image: var(--border-image-double-corner-1, url(/systems/splittermond/images/double-border-corner-1.png) 21 21);
     border-image-width: var(--border-image-width-double-corner-1, 21px);
     border-image-outset: var(--border-image-outset-double-corner-1, 0);
+}
+
+.lms-dialog-window .window-content {
+    overflow: hidden;
 }
 
 .lms-planning-window .window-content {
@@ -435,42 +446,36 @@
     filter: grayscale(0.5);
 }
 
-.lms-dialog.window-app,
-.lms-dialog.dialog {
-    color: var(--color-text-secondary, #1b130d);
-    background: var(--splittermond-background-parchment, url(/ui/parchment.jpg) repeat);
-    border: 3px solid transparent;
-    border-image: var(--border-image-paper, url(/systems/splittermond/images/border-paper-opt-2.png) 16 16);
-    border-image-width: var(--border-image-width-paper, 16px);
-    border-image-outset: var(--border-image-outset-paper, 3px);
-    border-image-repeat: round;
+.lms-dialog-form {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 10px;
+    height: 100%;
+    min-height: 0;
+    color: #1b130d;
+    text-shadow: none;
 }
 
-.lms-dialog .window-header {
-    background: transparent;
-    border: 0;
+.lms-dialog-body {
+    min-height: 0;
+    overflow-y: auto;
 }
 
-.lms-dialog .window-content {
-    color: var(--color-text-secondary, #1b130d);
-    background: var(--splittermond-background-parchment-blue, none), var(--splittermond-background-parchment, url(/ui/parchment.jpg) repeat);
-    background-position: top right;
-    background-blend-mode: var(--background-parchment-splittermond-blend-mode, multiply);
-    border: 4px solid transparent;
-    border-image: var(--border-image-double-corner-1, url(/systems/splittermond/images/double-border-corner-1.png) 21 21);
-    border-image-width: var(--border-image-width-double-corner-1, 21px);
-    border-image-outset: var(--border-image-outset-double-corner-1, 0);
-    margin: 5px;
-    margin-top: 0;
-    padding: 8px;
-}
-
-.lms-dialog .dialog-buttons {
+.lms-dialog-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 6px;
 }
 
-.lms-dialog .dialog-buttons button,
-.lms-dialog button.dialog-button {
+.lms-dialog-window .dialog-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.lms-dialog-buttons button,
+.lms-dialog-window .dialog-buttons button,
+.lms-dialog-window button.dialog-button {
     color: var(--color-text, #f0f0e0) !important;
     border: 3px solid transparent;
     border-image: var(--border-image-wobbly-line-double, url(/systems/splittermond/images/double-border_small_2.png) 6 6);
@@ -502,16 +507,18 @@
         0 1px 0 rgb(255, 255, 255, 0.5);
 }
 
-.lms-dialog .dialog-buttons button:hover,
-.lms-dialog button.dialog-button:hover {
+.lms-dialog-buttons button:hover,
+.lms-dialog-window .dialog-buttons button:hover,
+.lms-dialog-window button.dialog-button:hover {
     color: var(--color-text, #f0f0e0) !important;
     box-shadow:
         inset 0 -8px 8px 0 rgba(0, 0, 0, 0.15),
         inset 0 1px 1px rgba(255, 255, 255, 0.3);
 }
 
-.lms-dialog .dialog-buttons button:disabled,
-.lms-dialog button.dialog-button:disabled {
+.lms-dialog-buttons button:disabled,
+.lms-dialog-window .dialog-buttons button:disabled,
+.lms-dialog-window button.dialog-button:disabled {
     color: rgba(var(--color-text-secondary_rgb, 25, 24, 19), 0.7) !important;
     background: rgba(128, 128, 128, 0.1) !important;
     cursor: not-allowed;
