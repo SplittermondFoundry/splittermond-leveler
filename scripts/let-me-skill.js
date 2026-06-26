@@ -22,6 +22,7 @@ import {
     normalize,
     planCost,
     projectedFree,
+    projectedHeldengrad,
     projectedSpent,
     skillCostForPoint,
     skillDefById,
@@ -915,7 +916,7 @@ function canAddAttribute(actorState, plan, attributeId) {
     const cost = ATTRIBUTE_COSTS.get(nextIncrease);
     if (!cost) return { ok: false, reason: "Dieses Attribut kann nicht weiter gesteigert werden." };
 
-    const heldengradAfter = heldengradForSpent(projectedSpent(actorState, plan) + cost);
+    const heldengradAfter = projectedHeldengrad(actorState, plan);
     if (heldengradAfter < nextIncrease || nextIncrease > maxAttributeIncreasesForHeldengrad(heldengradAfter)) {
         return { ok: false, reason: `Für diese Steigerung wird Heldengrad ${nextIncrease} benötigt.` };
     }
@@ -929,7 +930,7 @@ function canAddSkill(actorState, plan, skillId) {
 
     const target = projectedSkillPoints(actorState, plan, skillId) + 1;
     const cost = skillCostForPoint(target);
-    const heldengradAfter = heldengradForSpent(projectedSpent(actorState, plan) + cost);
+    const heldengradAfter = projectedHeldengrad(actorState, plan);
     const required = skillHeldengradRequirement(target);
     if (heldengradAfter < required || target > maxSkillPointsForHeldengrad(heldengradAfter)) {
         return { ok: false, reason: `Für ${target} Punkte wird Heldengrad ${required} benötigt.` };

@@ -10,6 +10,7 @@ import {
     maxMasteryThresholdForPoints,
     maxSkillPointsForHeldengrad,
     maxSpellGradeForPoints,
+    projectedHeldengrad,
     createXpAdjustmentEntry,
     choiceProgressionForSkill,
     itemChoiceMatchesSkill,
@@ -30,6 +31,9 @@ assert.equal(maxSkillPointsForHeldengrad(1), 6);
 assert.equal(maxSkillPointsForHeldengrad(2), 9);
 assert.equal(maxSkillPointsForHeldengrad(3), 12);
 assert.equal(maxSkillPointsForHeldengrad(4), 15);
+
+assert.equal(projectedHeldengrad({ xp: { spent: 76 } }, [{ cost: 10 }]), 1);
+assert.equal(projectedHeldengrad({ xp: { spent: 90 } }, [{ cost: 10 }]), 2);
 
 assert.equal(skillCostForPoint(1), 3);
 assert.equal(skillCostForPoint(6), 3);

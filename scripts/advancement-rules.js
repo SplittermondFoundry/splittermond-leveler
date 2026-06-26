@@ -197,6 +197,10 @@ export function projectedSpent(state, plan) {
     return state.xp.spent + planCost(plan);
 }
 
+export function projectedHeldengrad(state, plan) {
+    return heldengradForSpent(projectedSpent(state, plan));
+}
+
 export function projectedFree(state, plan) {
     return state.xp.free - planCost(plan);
 }
