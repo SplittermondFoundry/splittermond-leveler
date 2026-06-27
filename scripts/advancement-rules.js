@@ -3,6 +3,100 @@ const localize = (key, fallback) => {
     return localized && localized !== key ? localized : fallback;
 };
 
+export const MODULE_ID = "splittermond-leveler";
+export const ADVANCEMENT_RULES_SETTING_KEY = "advancementRules";
+
+export const DEFAULT_ADVANCEMENT_RULES = {
+    heroLevelXpThresholds: { 2: 100, 3: 300, 4: 600 },
+    maxSkillPointsByHeroLevel: { 1: 6, 2: 9, 3: 12, 4: 15 },
+    maxAttributeIncreasesByHeroLevel: { 1: 1, 2: 2, 3: 3, 4: 4 },
+    skillPointCostsByHeroLevel: { 1: 3, 2: 5, 3: 7, 4: 9 },
+    attributeCostsByIncrease: { 1: 10, 2: 15, 3: 20, 4: 25 },
+    masteryCostsByThreshold: { 1: 5, 2: 10, 3: 15, 4: 20 },
+    spellCostsByGrade: { 0: 1, 1: 3, 2: 6, 3: 9, 4: 12, 5: 15 },
+    strengthCostsByLevel: { 1: 7, 2: 14 },
+    languageCost: 5,
+    resourceCostPerPoint: 7,
+    resourceMaximum: 6,
+    masteryThresholdRequirements: [
+        { points: 6, maxThreshold: 1 },
+        { points: 9, maxThreshold: 2 },
+        { points: 12, maxThreshold: 3 },
+        { points: 15, maxThreshold: 4 },
+    ],
+    spellGradeRequirements: [
+        { points: 1, maxGrade: 0 },
+        { points: 3, maxGrade: 1 },
+        { points: 6, maxGrade: 2 },
+        { points: 9, maxGrade: 3 },
+        { points: 12, maxGrade: 4 },
+        { points: 15, maxGrade: 5 },
+    ],
+};
+
+export function defaultAdvancementRules() {
+    return clonePlainData(DEFAULT_ADVANCEMENT_RULES);
+}
+
+export function getAdvancementRules() {
+    let configuredRules = null;
+    try {
+        configuredRules = globalThis.game?.settings?.get?.(MODULE_ID, ADVANCEMENT_RULES_SETTING_KEY);
+    } catch (_error) {
+        configuredRules = null;
+    }
+    return normalizeAdvancementRules(configuredRules);
+}
+
+export function normalizeAdvancementRules(value = {}) {
+    const source = value && typeof value === "object" ? value : {};
+    return {
+        heroLevelXpThresholds: normalizeNumberRecord(source.heroLevelXpThresholds, DEFAULT_ADVANCEMENT_RULES.heroLevelXpThresholds),
+        maxSkillPointsByHeroLevel: normalizeNumberRecord(source.maxSkillPointsByHeroLevel, DEFAULT_ADVANCEMENT_RULES.maxSkillPointsByHeroLevel),
+        maxAttributeIncreasesByHeroLevel: normalizeNumberRecord(
+            source.maxAttributeIncreasesByHeroLevel,
+            DEFAULT_ADVANCEMENT_RULES.maxAttributeIncreasesByHeroLevel
+        ),
+        skillPointCostsByHeroLevel: normalizeNumberRecord(source.skillPointCostsByHeroLevel, DEFAULT_ADVANCEMENT_RULES.skillPointCostsByHeroLevel),
+        attributeCostsByIncrease: normalizeNumberRecord(source.attributeCostsByIncrease, DEFAULT_ADVANCEMENT_RULES.attributeCostsByIncrease),
+        masteryCostsByThreshold: normalizeNumberRecord(source.masteryCostsByThreshold, DEFAULT_ADVANCEMENT_RULES.masteryCostsByThreshold),
+        spellCostsByGrade: normalizeNumberRecord(source.spellCostsByGrade, DEFAULT_ADVANCEMENT_RULES.spellCostsByGrade),
+        strengthCostsByLevel: normalizeNumberRecord(source.strengthCostsByLevel, DEFAULT_ADVANCEMENT_RULES.strengthCostsByLevel),
+        languageCost: integerSetting(source.languageCost, DEFAULT_ADVANCEMENT_RULES.languageCost),
+        resourceCostPerPoint: integerSetting(source.resourceCostPerPoint, DEFAULT_ADVANCEMENT_RULES.resourceCostPerPoint),
+        resourceMaximum: integerSetting(source.resourceMaximum, DEFAULT_ADVANCEMENT_RULES.resourceMaximum),
+        masteryThresholdRequirements: normalizeRequirementList(
+            source.masteryThresholdRequirements,
+            DEFAULT_ADVANCEMENT_RULES.masteryThresholdRequirements,
+            "maxThreshold"
+        ),
+        spellGradeRequirements: normalizeRequirementList(source.spellGradeRequirements, DEFAULT_ADVANCEMENT_RULES.spellGradeRequirements, "maxGrade"),
+    };
+}
+
+function normalizeNumberRecord(source, defaults) {
+    const sourceRecord = source && typeof source === "object" ? source : {};
+    return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => [key, integerSetting(sourceRecord[key], fallback)]));
+}
+
+function normalizeRequirementList(source, defaults, valueKey) {
+    const sourceList = Array.isArray(source) ? source : [];
+    return defaults.map((defaultEntry, index) => {
+        const entry = sourceList[index] && typeof sourceList[index] === "object" ? sourceList[index] : {};
+        return {
+            points: integerSetting(entry.points, defaultEntry.points),
+            [valueKey]: integerSetting(entry[valueKey], defaultEntry[valueKey]),
+        };
+    });
+}
+
+function integerSetting(value, fallback) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    const integer = Math.trunc(number);
+    return integer >= 0 ? integer : fallback;
+}
+
 export const ATTRIBUTE_DEFS = [
     {
         id: "charisma",
@@ -112,27 +206,15 @@ export const MAGIC_SCHOOLS = [
 
 export const SKILL_DEFS = [...GENERAL_SKILLS, ...COMBAT_SKILLS, ...MAGIC_SCHOOLS];
 
-export const FREE_MASTERY_THRESHOLDS = [6, 9, 12, 15];
-export const FREE_SPELL_THRESHOLDS = new Map([
-    [1, 0],
-    [3, 1],
-    [6, 2],
-    [9, 3],
-    [12, 4],
-    [15, 5],
-]);
-
-export const ATTRIBUTE_COSTS = new Map([
-    [1, 10],
-    [2, 15],
-    [3, 20],
-    [4, 25],
-]);
+export const FREE_MASTERY_THRESHOLDS = DEFAULT_ADVANCEMENT_RULES.masteryThresholdRequirements.map((entry) => entry.points);
+export const FREE_SPELL_THRESHOLDS = new Map(DEFAULT_ADVANCEMENT_RULES.spellGradeRequirements.map((entry) => [entry.points, entry.maxGrade]));
+export const ATTRIBUTE_COSTS = new Map(Object.entries(DEFAULT_ADVANCEMENT_RULES.attributeCostsByIncrease).map(([key, value]) => [Number(key), value]));
 
 export function heldengradForSpent(spentXp) {
-    if (spentXp >= 600) return 4;
-    if (spentXp >= 300) return 3;
-    if (spentXp >= 100) return 2;
+    const thresholds = getAdvancementRules().heroLevelXpThresholds;
+    if (spentXp >= thresholds[4]) return 4;
+    if (spentXp >= thresholds[3]) return 3;
+    if (spentXp >= thresholds[2]) return 2;
     return 1;
 }
 
@@ -142,51 +224,76 @@ export function heldengradLabel(grade) {
 }
 
 export function maxSkillPointsForHeldengrad(grade) {
-    return [0, 6, 9, 12, 15][grade] ?? 15;
+    const limits = getAdvancementRules().maxSkillPointsByHeroLevel;
+    return limits[grade] ?? limits[4] ?? 15;
 }
 
 export function maxAttributeIncreasesForHeldengrad(grade) {
-    return [0, 1, 2, 3, 4][grade] ?? 4;
+    const limits = getAdvancementRules().maxAttributeIncreasesByHeroLevel;
+    return limits[grade] ?? limits[4] ?? 4;
+}
+
+export function attributeCostForIncrease(increase) {
+    return getAdvancementRules().attributeCostsByIncrease[increase] ?? null;
 }
 
 export function skillCostForPoint(targetPoint) {
-    if (targetPoint <= 6) return 3;
-    if (targetPoint <= 9) return 5;
-    if (targetPoint <= 12) return 7;
-    return 9;
+    const requiredGrade = skillHeldengradRequirement(targetPoint);
+    return getAdvancementRules().skillPointCostsByHeroLevel[requiredGrade] ?? null;
 }
 
 export function skillHeldengradRequirement(targetPoint) {
-    if (targetPoint <= 6) return 1;
-    if (targetPoint <= 9) return 2;
-    if (targetPoint <= 12) return 3;
+    for (const grade of [1, 2, 3, 4]) {
+        if (targetPoint <= maxSkillPointsForHeldengrad(grade)) return grade;
+    }
     return 4;
 }
 
 export function spellCost(grade) {
-    return [1, 3, 6, 9, 12, 15][grade] ?? null;
+    return getAdvancementRules().spellCostsByGrade[grade] ?? null;
 }
 
 export function masteryCost(threshold) {
-    return threshold * 5;
+    return getAdvancementRules().masteryCostsByThreshold[threshold] ?? null;
 }
 
 export function maxSpellGradeForPoints(points) {
-    if (points >= 15) return 5;
-    if (points >= 12) return 4;
-    if (points >= 9) return 3;
-    if (points >= 6) return 2;
-    if (points >= 3) return 1;
-    if (points >= 1) return 0;
-    return -1;
+    return spellGradeRequirements().reduce((maxGrade, requirement) => (points >= requirement.points ? requirement.maxGrade : maxGrade), -1);
 }
 
 export function maxMasteryThresholdForPoints(points) {
-    if (points >= 15) return 4;
-    if (points >= 12) return 3;
-    if (points >= 9) return 2;
-    if (points >= 6) return 1;
-    return 0;
+    return masteryThresholdRequirements().reduce(
+        (maxThreshold, requirement) => (points >= requirement.points ? requirement.maxThreshold : maxThreshold),
+        0
+    );
+}
+
+export function masteryThresholdRequirements() {
+    return getAdvancementRules()
+        .masteryThresholdRequirements.slice()
+        .sort((left, right) => left.points - right.points);
+}
+
+export function spellGradeRequirements() {
+    return getAdvancementRules()
+        .spellGradeRequirements.slice()
+        .sort((left, right) => left.points - right.points);
+}
+
+export function strengthCost(level) {
+    return getAdvancementRules().strengthCostsByLevel[level] ?? null;
+}
+
+export function languageCost() {
+    return getAdvancementRules().languageCost;
+}
+
+export function resourceCostPerPoint() {
+    return getAdvancementRules().resourceCostPerPoint;
+}
+
+export function resourceMaximum() {
+    return getAdvancementRules().resourceMaximum;
 }
 
 export function planCost(plan) {

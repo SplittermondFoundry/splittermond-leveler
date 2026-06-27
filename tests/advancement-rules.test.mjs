@@ -1,24 +1,33 @@
 import assert from "node:assert/strict";
 import {
     ATTRIBUTE_COSTS,
+    attributeCostForIncrease,
     buildPlannedItemData,
     duplicateSelectionState,
+    defaultAdvancementRules,
     heldengradForSpent,
     itemAllowsMultipleSelection,
     itemsDuplicate,
+    languageCost,
     masteryCost,
+    masteryThresholdRequirements,
     maxMasteryThresholdForPoints,
     maxSkillPointsForHeldengrad,
     maxSpellGradeForPoints,
+    normalizeAdvancementRules,
     projectedHeldengrad,
     createXpAdjustmentEntry,
     choiceProgressionForSkill,
     itemChoiceMatchesSkill,
     mergeProgressionEntry,
     mergeResourceEntry,
+    resourceCostPerPoint,
+    resourceMaximum,
     skillCostForPoint,
     skillHeldengradRequirement,
     spellCost,
+    spellGradeRequirements,
+    strengthCost,
 } from "../scripts/advancement-rules.js";
 
 assert.equal(heldengradForSpent(0), 1);
@@ -48,6 +57,8 @@ assert.equal(skillHeldengradRequirement(13), 4);
 
 assert.equal(ATTRIBUTE_COSTS.get(1), 10);
 assert.equal(ATTRIBUTE_COSTS.get(4), 25);
+assert.equal(attributeCostForIncrease(1), 10);
+assert.equal(attributeCostForIncrease(4), 25);
 
 assert.equal(masteryCost(1), 5);
 assert.equal(masteryCost(4), 20);
@@ -60,6 +71,92 @@ assert.equal(spellCost(5), 15);
 assert.equal(maxSpellGradeForPoints(0), -1);
 assert.equal(maxSpellGradeForPoints(1), 0);
 assert.equal(maxSpellGradeForPoints(15), 5);
+assert.equal(strengthCost(1), 7);
+assert.equal(strengthCost(2), 14);
+assert.equal(languageCost(), 5);
+assert.equal(resourceCostPerPoint(), 7);
+assert.equal(resourceMaximum(), 6);
+
+const defaultRules = defaultAdvancementRules();
+assert.deepEqual(defaultRules.heroLevelXpThresholds, { 2: 100, 3: 300, 4: 600 });
+assert.deepEqual(masteryThresholdRequirements(), [
+    { points: 6, maxThreshold: 1 },
+    { points: 9, maxThreshold: 2 },
+    { points: 12, maxThreshold: 3 },
+    { points: 15, maxThreshold: 4 },
+]);
+assert.deepEqual(spellGradeRequirements(), [
+    { points: 1, maxGrade: 0 },
+    { points: 3, maxGrade: 1 },
+    { points: 6, maxGrade: 2 },
+    { points: 9, maxGrade: 3 },
+    { points: 12, maxGrade: 4 },
+    { points: 15, maxGrade: 5 },
+]);
+
+const normalizedRules = normalizeAdvancementRules({
+    heroLevelXpThresholds: { 2: "80" },
+    resourceCostPerPoint: "9",
+    masteryThresholdRequirements: [{ points: "4", maxThreshold: "1" }],
+});
+assert.equal(normalizedRules.heroLevelXpThresholds[2], 80);
+assert.equal(normalizedRules.heroLevelXpThresholds[3], 300);
+assert.equal(normalizedRules.resourceCostPerPoint, 9);
+assert.deepEqual(normalizedRules.masteryThresholdRequirements[0], { points: 4, maxThreshold: 1 });
+
+const originalGame = globalThis.game;
+globalThis.game = {
+    settings: {
+        get: () => ({
+            heroLevelXpThresholds: { 2: 50, 3: 120, 4: 240 },
+            maxSkillPointsByHeroLevel: { 1: 4, 2: 8, 3: 12, 4: 16 },
+            maxAttributeIncreasesByHeroLevel: { 1: 2, 2: 3, 3: 4, 4: 5 },
+            skillPointCostsByHeroLevel: { 1: 2, 2: 4, 3: 6, 4: 8 },
+            attributeCostsByIncrease: { 1: 11, 2: 12, 3: 13, 4: 14 },
+            masteryCostsByThreshold: { 1: 4, 2: 8, 3: 12, 4: 16 },
+            spellCostsByGrade: { 0: 2, 1: 4, 2: 6, 3: 8, 4: 10, 5: 12 },
+            strengthCostsByLevel: { 1: 6, 2: 10 },
+            languageCost: 2,
+            resourceCostPerPoint: 6,
+            resourceMaximum: 8,
+            masteryThresholdRequirements: [
+                { points: 4, maxThreshold: 1 },
+                { points: 8, maxThreshold: 2 },
+                { points: 12, maxThreshold: 3 },
+                { points: 16, maxThreshold: 4 },
+            ],
+            spellGradeRequirements: [
+                { points: 2, maxGrade: 0 },
+                { points: 5, maxGrade: 1 },
+                { points: 8, maxGrade: 2 },
+                { points: 11, maxGrade: 3 },
+                { points: 14, maxGrade: 4 },
+                { points: 16, maxGrade: 5 },
+            ],
+        }),
+    },
+};
+
+assert.equal(heldengradForSpent(49), 1);
+assert.equal(heldengradForSpent(50), 2);
+assert.equal(heldengradForSpent(120), 3);
+assert.equal(heldengradForSpent(240), 4);
+assert.equal(maxSkillPointsForHeldengrad(1), 4);
+assert.equal(maxSkillPointsForHeldengrad(4), 16);
+assert.equal(skillHeldengradRequirement(5), 2);
+assert.equal(skillCostForPoint(5), 4);
+assert.equal(attributeCostForIncrease(3), 13);
+assert.equal(masteryCost(4), 16);
+assert.equal(spellCost(5), 12);
+assert.equal(maxMasteryThresholdForPoints(7), 1);
+assert.equal(maxMasteryThresholdForPoints(8), 2);
+assert.equal(maxSpellGradeForPoints(4), 0);
+assert.equal(maxSpellGradeForPoints(5), 1);
+assert.equal(strengthCost(2), 10);
+assert.equal(languageCost(), 2);
+assert.equal(resourceCostPerPoint(), 6);
+assert.equal(resourceMaximum(), 8);
+globalThis.game = originalGame;
 
 const xpEntry = createXpAdjustmentEntry({ id: "xp-1", amount: 12 });
 assert.deepEqual(xpEntry, {

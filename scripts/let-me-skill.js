@@ -1,18 +1,18 @@
 import {
-    ATTRIBUTE_COSTS,
     ATTRIBUTE_DEFS,
+    attributeCostForIncrease,
     buildPlannedItemData,
     choiceProgressionForSkill,
     createXpAdjustmentEntry,
     duplicateSelectionState,
-    FREE_MASTERY_THRESHOLDS,
-    FREE_SPELL_THRESHOLDS,
     MAGIC_SCHOOLS,
     heldengradForSpent,
     heldengradLabel,
     itemAllowsMultipleSelection,
     itemChoiceMatchesSkill,
+    languageCost,
     masteryCost,
+    masteryThresholdRequirements,
     maxAttributeIncreasesForHeldengrad,
     maxMasteryThresholdForPoints,
     maxSkillPointsForHeldengrad,
@@ -24,11 +24,16 @@ import {
     projectedFree,
     projectedHeldengrad,
     projectedSpent,
+    resourceCostPerPoint,
+    resourceMaximum,
     skillCostForPoint,
     skillDefById,
     skillHeldengradRequirement,
     spellCost,
+    spellGradeRequirements,
+    strengthCost,
 } from "./advancement-rules.js";
+import { registerAdvancementSettings } from "./advancement-settings.js";
 import { choiceMenuPlacement, choiceSelectHtml as dialogChoiceSelectHtml } from "./dialog-choice-select.js";
 import { dialogFormHtml, promptDialogApplicationOptions, promptDialogOptions } from "./dialog-window.js";
 import { calculateSnappedPanelPosition, sameSnappedPanelPosition, shouldResetSheetStateOnClose, zIndexBelowAnchor } from "./panel-layout.js";
@@ -39,7 +44,6 @@ const MODULE_VERSION = "0.1.20";
 const FLAG_SCOPE = "splittermond-leveler";
 const FLAG_KEY = "advancementUndo";
 const ACTOR_UNDO_STATE_KEY = "advancementUndoState";
-const DEFAULT_RESOURCE_MAX = 6;
 const sheetStates = new Map();
 const itemChoiceCache = new Map();
 const packIndexCache = new Map();
@@ -57,6 +61,7 @@ const PlanningApplicationBase = hasApplicationV2
 
 Hooks.once("init", () => {
     console.log("Leveler | init");
+    registerAdvancementSettings();
 });
 
 Hooks.once("ready", () => {
@@ -990,8 +995,8 @@ function canAddAttribute(actorState, plan, attributeId) {
     if (!attribute) return { ok: false, reason: "Attribut nicht gefunden." };
     const current = projectedAttributeCurrent(actorState, plan, attributeId);
     const nextIncrease = current - attribute.start + 1;
-    const cost = ATTRIBUTE_COSTS.get(nextIncrease);
-    if (!cost) return { ok: false, reason: "Dieses Attribut kann nicht weiter gesteigert werden." };
+    const cost = attributeCostForIncrease(nextIncrease);
+    if (cost == null) return { ok: false, reason: "Dieses Attribut kann nicht weiter gesteigert werden." };
 
     const heldengradAfter = projectedHeldengrad(actorState, plan);
     if (heldengradAfter < nextIncrease || nextIncrease > maxAttributeIncreasesForHeldengrad(heldengradAfter)) {
@@ -1018,9 +1023,11 @@ function canAddSkill(actorState, plan, skillId) {
 
 function canAddResource(actorState, plan, item) {
     const current = projectedResourceLevel(actorState, plan, item.name, item.id);
-    if (current >= DEFAULT_RESOURCE_MAX) return { ok: false, reason: "Ressource ist bereits auf Maximum." };
-    if (projectedFree(actorState, plan) < 7) return { ok: false, reason: "Nicht genug freie XP." };
-    return { ok: true, cost: 7 };
+    const maximum = resourceMaximum();
+    const cost = resourceCostPerPoint();
+    if (current >= maximum) return { ok: false, reason: "Ressource ist bereits auf Maximum." };
+    if (projectedFree(actorState, plan) < cost) return { ok: false, reason: "Nicht genug freie XP." };
+    return { ok: true, cost };
 }
 
 function canAddMastery(actorState, plan, skillId) {
@@ -1122,13 +1129,13 @@ async function collectFreeThresholdRewards(app, actorState, sheetState, skillId,
     const entries = [];
 
     if (skill.type === "magic") {
-        for (const [threshold, maxGrade] of FREE_SPELL_THRESHOLDS.entries()) {
-            if (fromPoints < threshold && toPoints >= threshold) {
+        for (const requirement of spellGradeRequirements()) {
+            if (fromPoints < requirement.points && toPoints >= requirement.points) {
                 const entry = await promptSpellEntry(actorState, provisionalPlan.concat(entries), skillId, {
                     free: true,
                     parentId,
-                    fixedMaxGrade: maxGrade,
-                    title: `Kostenfreier Zauber für ${skill.label} ${threshold} FP`,
+                    fixedMaxGrade: requirement.maxGrade,
+                    title: `Kostenfreier Zauber für ${skill.label} ${requirement.points} FP`,
                 });
                 if (!entry) return null;
                 entries.push(entry);
@@ -1136,14 +1143,13 @@ async function collectFreeThresholdRewards(app, actorState, sheetState, skillId,
         }
     }
 
-    for (const threshold of FREE_MASTERY_THRESHOLDS) {
-        if (fromPoints < threshold && toPoints >= threshold) {
-            const maxThreshold = threshold === 6 ? 1 : threshold === 9 ? 2 : threshold === 12 ? 3 : 4;
+    for (const requirement of masteryThresholdRequirements()) {
+        if (fromPoints < requirement.points && toPoints >= requirement.points) {
             const entry = await promptMasteryEntry(actorState, provisionalPlan.concat(entries), skillId, {
                 free: true,
                 parentId,
-                fixedMaxThreshold: maxThreshold,
-                title: `Kostenfreie Meisterschaft für ${skill.label} ${threshold} FP`,
+                fixedMaxThreshold: requirement.maxThreshold,
+                title: `Kostenfreie Meisterschaft für ${skill.label} ${requirement.points} FP`,
             });
             if (!entry) return null;
             entries.push(entry);
@@ -1226,7 +1232,7 @@ async function promptStrengthEntry(actorState, plan) {
         type: "item",
         itemType: "strength",
         name,
-        cost: level * 7,
+        cost: strengthCost(level),
         sourceUuid: choice?.uuid ?? null,
         multiSelectable: itemAllowsMultipleSelection({ itemType: "strength", system: choice?.system }),
         itemData: choice ? await itemDataFromChoice(choice) : null,
@@ -1259,7 +1265,7 @@ async function promptLanguageEntry() {
         type: "item",
         itemType: "language",
         name,
-        cost: 5,
+        cost: languageCost(),
         sourceUuid: choice?.uuid ?? null,
         itemData: choice ? await itemDataFromChoice(choice) : null,
         fallbackSystem: {},
@@ -1269,7 +1275,7 @@ async function promptLanguageEntry() {
 
 function buildExistingResourceEntry(actorState, plan, item) {
     const current = projectedResourceLevel(actorState, plan, item.name, item.id);
-    if (current >= DEFAULT_RESOURCE_MAX) return notifyError("Diese Ressource ist bereits auf Maximum."), null;
+    if (current >= resourceMaximum()) return notifyError("Diese Ressource ist bereits auf Maximum."), null;
     return {
         id: cryptoRandomId(),
         type: "resource",
@@ -1277,7 +1283,7 @@ function buildExistingResourceEntry(actorState, plan, item) {
         name: item.name,
         resourceItemId: item.id,
         resourcePoints: 1,
-        cost: 7,
+        cost: resourceCostPerPoint(),
         from: current,
         to: current + 1,
         summary: `Ressource ${item.name} +1 (${current} -> ${current + 1})`,
@@ -1286,10 +1292,11 @@ function buildExistingResourceEntry(actorState, plan, item) {
 
 async function promptResourceEntry(actorState, plan) {
     const resourceItems = actorState.actor.items.filter((item) => item.type === "resource");
+    const maximum = resourceMaximum();
     const options = resourceItems
         .map((item, index) => {
             const current = projectedResourceLevel(actorState, plan, item.name, item.id);
-            return `<option value="${index}" ${current >= DEFAULT_RESOURCE_MAX ? "disabled" : ""}>${escapeHtml(item.name)} (${current}/${DEFAULT_RESOURCE_MAX})</option>`;
+            return `<option value="${index}" ${current >= maximum ? "disabled" : ""}>${escapeHtml(item.name)} (${current}/${maximum})</option>`;
         })
         .join("");
     const data = await promptForm({
@@ -1301,7 +1308,7 @@ async function promptResourceEntry(actorState, plan) {
                     <select name="existing"><option value="">Neue Ressource</option>${options}</select>
                 </label>
                 <label><strong>Name neuer Ressource</strong><input type="text" name="name" /></label>
-                <label><strong>Punkte</strong><input type="number" name="points" value="1" min="1" max="${DEFAULT_RESOURCE_MAX}" /></label>
+                <label><strong>Punkte</strong><input type="number" name="points" value="1" min="1" max="${maximum}" /></label>
             </div>
         `,
         confirmLabel: "Übernehmen",
@@ -1317,8 +1324,8 @@ async function promptResourceEntry(actorState, plan) {
     if (!name) return notifyError("Bitte gib einen Namen ein."), null;
 
     const current = projectedResourceLevel(actorState, plan, name, existing?.id ?? null);
-    if (current + points > DEFAULT_RESOURCE_MAX) {
-        return notifyError(`Ressourcen dürfen maximal ${DEFAULT_RESOURCE_MAX} Punkte haben.`), null;
+    if (current + points > maximum) {
+        return notifyError(`Ressourcen dürfen maximal ${maximum} Punkte haben.`), null;
     }
 
     return {
@@ -1328,7 +1335,7 @@ async function promptResourceEntry(actorState, plan) {
         name,
         resourceItemId: existing?.id ?? null,
         resourcePoints: points,
-        cost: points * 7,
+        cost: points * resourceCostPerPoint(),
         from: current,
         to: current + points,
         summary: `Ressource ${name} +${points} (${current} -> ${current + points})`,
@@ -2225,7 +2232,7 @@ async function decreaseResourceStep(app, actorState, sheetState, item) {
         sheetState.plan = sheetState.plan.filter((candidate) => candidate !== entry);
     } else {
         entry.resourcePoints -= 1;
-        entry.cost -= 7;
+        entry.cost -= resourceCostPerPoint();
         entry.to -= 1;
         entry.summary = `Ressource ${entry.name} +${entry.resourcePoints} (${entry.from} -> ${entry.to})`;
     }

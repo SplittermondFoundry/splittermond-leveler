@@ -23,8 +23,13 @@
     min-height: 220px;
 }
 
+.lms-settings-window {
+    min-width: 520px;
+}
+
 .lms-dialog-window:not(form.application),
-.lms-planning-window:not(form.application) {
+.lms-planning-window:not(form.application),
+.lms-settings-window:not(form.application) {
     color: var(--color-text-secondary, #1b130d);
     background: var(--splittermond-background-parchment, url(/systems/splittermond/images/parchment.jpg) repeat);
     border: 3px solid transparent;
@@ -35,7 +40,8 @@
 }
 
 .lms-dialog-window:not(form.application) .window-content,
-.lms-planning-window:not(form.application) .window-content {
+.lms-planning-window:not(form.application) .window-content,
+.lms-settings-window:not(form.application) .window-content {
     margin: 5px;
     margin-top: 0;
     padding: 8px;
@@ -54,6 +60,82 @@
 
 .lms-planning-window .window-content {
     overflow: hidden;
+}
+
+.lms-settings-window .window-content {
+    overflow: hidden;
+}
+
+.lms-settings-form {
+    display: grid;
+    gap: 12px;
+    max-height: min(760px, calc(100vh - 160px));
+    padding: 2px;
+    overflow-y: auto;
+    color: #1b130d;
+    text-shadow: none;
+}
+
+.lms-settings-section {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.26);
+    background: rgba(255, 255, 255, 0.52);
+}
+
+.lms-settings-section h2 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.lms-settings-subsection {
+    display: grid;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.16);
+    background: rgba(255, 255, 255, 0.32);
+}
+
+.lms-settings-subsection h3 {
+    margin: 0;
+    font-size: 13px;
+}
+
+.lms-settings-help {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.35;
+    opacity: 0.86;
+}
+
+.lms-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 8px;
+}
+
+.lms-settings-field {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    font-size: 12px;
+}
+
+.lms-settings-field input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.lms-settings-actions {
+    position: sticky;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding-top: 8px;
+    background: var(--splittermond-background-parchment, url(/systems/splittermond/images/parchment.jpg) repeat);
 }
 
 .lms-planning-panel {
@@ -475,7 +557,8 @@
 
 .lms-dialog-buttons button,
 .lms-dialog-window .dialog-buttons button,
-.lms-dialog-window button.dialog-button {
+.lms-dialog-window button.dialog-button,
+.lms-settings-actions button {
     color: var(--color-text, #f0f0e0) !important;
     border: 3px solid transparent;
     border-image: var(--border-image-wobbly-line-double, url(/systems/splittermond/images/double-border_small_2.png) 6 6);
@@ -509,7 +592,8 @@
 
 .lms-dialog-buttons button:hover,
 .lms-dialog-window .dialog-buttons button:hover,
-.lms-dialog-window button.dialog-button:hover {
+.lms-dialog-window button.dialog-button:hover,
+.lms-settings-actions button:hover {
     color: var(--color-text, #f0f0e0) !important;
     box-shadow:
         inset 0 -8px 8px 0 rgba(0, 0, 0, 0.15),
@@ -518,7 +602,8 @@
 
 .lms-dialog-buttons button:disabled,
 .lms-dialog-window .dialog-buttons button:disabled,
-.lms-dialog-window button.dialog-button:disabled {
+.lms-dialog-window button.dialog-button:disabled,
+.lms-settings-actions button:disabled {
     color: rgba(var(--color-text-secondary_rgb, 25, 24, 19), 0.7) !important;
     background: rgba(128, 128, 128, 0.1) !important;
     cursor: not-allowed;
