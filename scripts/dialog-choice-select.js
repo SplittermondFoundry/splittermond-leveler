@@ -69,6 +69,24 @@ export function portalChoiceMenu(menu, portal) {
     };
 }
 
+export function watchChoiceMenuOwner(owner, onDisconnect, MutationObserverClass = owner?.ownerDocument?.defaultView?.MutationObserver ?? globalThis.MutationObserver) {
+    if (!owner || typeof onDisconnect !== "function") return () => {};
+    if (owner.isConnected === false) {
+        onDisconnect();
+        return () => {};
+    }
+    const body = owner.ownerDocument?.body ?? globalThis.document?.body;
+    if (!body || typeof MutationObserverClass !== "function") return () => {};
+
+    const observer = new MutationObserverClass(() => {
+        if (owner.isConnected !== false) return;
+        observer.disconnect();
+        onDisconnect();
+    });
+    observer.observe(body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+}
+
 export function choiceMenuZIndex(style, fallback = 100) {
     const zIndex = Number.parseInt(style?.zIndex ?? "", 10);
     return (Number.isInteger(zIndex) ? zIndex : fallback) + 1;

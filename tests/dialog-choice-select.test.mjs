@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { choiceMenuLayout, choiceMenuPlacement, choiceMenuZIndex, choiceSelectHtml, portalChoiceMenu } from "../scripts/dialog-choice-select.js";
+import {
+    choiceMenuLayout,
+    choiceMenuPlacement,
+    choiceMenuZIndex,
+    choiceSelectHtml,
+    portalChoiceMenu,
+    watchChoiceMenuOwner,
+} from "../scripts/dialog-choice-select.js";
 
 const html = choiceSelectHtml(
     [
@@ -111,6 +118,40 @@ restoreMenu();
 assert.deepEqual(originalParent.children.map((child) => child.name), ["trigger", "menu", "show-button"]);
 assert.deepEqual(portalParent.children.map((child) => child.name), []);
 assert.equal(menuNode.parentNode, originalParent);
+
+const ownerDocument = { body: fakeNode("document-body") };
+const ownerWindow = fakeNode("window");
+ownerWindow.ownerDocument = ownerDocument;
+ownerWindow.isConnected = true;
+let activeObserver = null;
+let disconnectedCount = 0;
+class FakeMutationObserver {
+    constructor(callback) {
+        this.callback = callback;
+        this.disconnected = false;
+        activeObserver = this;
+    }
+
+    observe(target, options) {
+        this.target = target;
+        this.options = options;
+    }
+
+    disconnect() {
+        this.disconnected = true;
+    }
+}
+
+watchChoiceMenuOwner(ownerWindow, () => {
+    disconnectedCount += 1;
+}, FakeMutationObserver);
+
+assert.equal(activeObserver.target, ownerDocument.body);
+assert.deepEqual(activeObserver.options, { childList: true, subtree: true });
+ownerWindow.isConnected = false;
+activeObserver.callback();
+assert.equal(disconnectedCount, 1);
+assert.equal(activeObserver.disconnected, true);
 
 console.log("dialog-choice-select tests passed");
 

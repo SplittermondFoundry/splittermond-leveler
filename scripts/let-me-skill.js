@@ -34,7 +34,13 @@ import {
     strengthCost,
 } from "./advancement-rules.js";
 import { registerAdvancementSettings } from "./advancement-settings.js";
-import { choiceMenuLayout, choiceMenuZIndex, choiceSelectHtml as dialogChoiceSelectHtml, portalChoiceMenu } from "./dialog-choice-select.js";
+import {
+    choiceMenuLayout,
+    choiceMenuZIndex,
+    choiceSelectHtml as dialogChoiceSelectHtml,
+    portalChoiceMenu,
+    watchChoiceMenuOwner,
+} from "./dialog-choice-select.js";
 import { dialogFormHtml, promptDialogApplicationOptions, promptDialogOptions } from "./dialog-window.js";
 import { calculateSnappedPanelPosition, sameSnappedPanelPosition, shouldResetSheetStateOnClose, zIndexBelowAnchor } from "./panel-layout.js";
 import { captureScrollPositions, restoreScrollPositions } from "./sheet-scroll.js";
@@ -1511,6 +1517,8 @@ function bindChoiceSelect(root, choices) {
     if (!(nameInput instanceof HTMLInputElement)) return;
 
     let restoreChoiceMenu = null;
+    let stopWatchingChoiceOwner = null;
+    const choiceOwner = root.closest?.(".application, .app, .window-app, .dialog") ?? root;
     const choiceByValue = (value) => choices[Number.parseInt(value, 10)] ?? null;
     const currentValue = () => {
         if (select instanceof HTMLSelectElement) return select.value;
@@ -1565,7 +1573,9 @@ function bindChoiceSelect(root, choices) {
     const setOpen = (open) => {
         if (!(trigger instanceof HTMLButtonElement) || !(menu instanceof HTMLElement)) return;
         if (open) {
+            if (choiceOwner?.isConnected === false) return;
             restoreChoiceMenu = restoreChoiceMenu ?? portalChoiceMenu(menu, document.body);
+            stopWatchingChoiceOwner = stopWatchingChoiceOwner ?? watchChoiceMenuOwner(choiceOwner, () => setOpen(false));
             positionChoiceMenu(root, picker, trigger, menu);
         }
         menu.hidden = !open;
@@ -1577,6 +1587,8 @@ function bindChoiceSelect(root, choices) {
             document.addEventListener("keydown", handleDocumentKeydown);
         }
         if (!open) {
+            stopWatchingChoiceOwner?.();
+            stopWatchingChoiceOwner = null;
             restoreChoiceMenu?.();
             restoreChoiceMenu = null;
         }

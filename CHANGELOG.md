@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.10 - 2026-06-27
+
+### Behoben
+
+- Geöffnete Auswahl-Dropdowns schließen nun sauber, wenn das ursprüngliche Dialogfenster geschlossen wird.
+
 ## 0.2.0 - 2026-06-27
 
 ### Neu
