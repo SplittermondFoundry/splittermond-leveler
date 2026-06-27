@@ -628,6 +628,26 @@
     gap: 4px;
 }
 
+.lms-dialog-form .lms-choice-sort-controls {
+    display: inline-flex;
+    gap: 4px;
+    justify-self: start;
+}
+
+.lms-dialog-form .lms-choice-sort-button {
+    min-height: 22px;
+    margin: 0;
+    padding: 0 7px;
+    box-sizing: border-box;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.lms-dialog-form .lms-choice-sort-button.is-active {
+    color: #fff;
+    background: #1f65d6;
+}
+
 .lms-dialog-form input,
 .lms-dialog-form select {
     width: 100%;
@@ -668,16 +688,17 @@
     white-space: nowrap;
 }
 
-.lms-dialog-form .lms-choice-menu {
-    position: absolute;
-    z-index: 20;
-    top: calc(100% + 2px);
-    left: 0;
+.lms-choice-menu {
+    position: fixed;
+    z-index: var(--lms-choice-menu-z-index, 101);
+    top: var(--lms-choice-menu-top, auto);
+    bottom: var(--lms-choice-menu-bottom, auto);
+    left: var(--lms-choice-menu-left, 0);
     right: auto;
     display: grid;
-    width: 100%;
-    max-width: 100%;
-    max-height: var(--lms-choice-menu-max-height, calc(28px * 8));
+    width: var(--lms-choice-menu-width, 100%);
+    max-width: min(var(--lms-choice-menu-width, 100%), calc(100vw - 16px));
+    max-height: var(--lms-choice-menu-max-height, calc(28px * 15));
     overflow-x: hidden;
     overflow-y: auto;
     box-sizing: border-box;
@@ -687,16 +708,35 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-.lms-dialog-form .lms-choice-picker.lms-choice-opens-up .lms-choice-menu {
-    top: auto;
-    bottom: calc(100% + 2px);
-}
-
-.lms-dialog-form .lms-choice-menu[hidden] {
+.lms-choice-menu[hidden] {
     display: none;
 }
 
-.lms-dialog-form .lms-choice-row {
+.lms-dialog-form .lms-choice-picker.lms-choice-opens-up .lms-choice-menu {
+    top: var(--lms-choice-menu-top, auto);
+    bottom: var(--lms-choice-menu-bottom, auto);
+}
+
+.lms-choice-menu .lms-choice-group-heading {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    min-height: 24px;
+    padding: 5px 6px 3px;
+    overflow: hidden;
+    box-sizing: border-box;
+    color: #4f3828;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: #d8ccb2;
+    border-top: 1px solid rgba(0, 0, 0, 0.22);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.18);
+}
+
+.lms-choice-menu .lms-choice-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: center;
@@ -707,39 +747,39 @@
     box-sizing: border-box;
 }
 
-.lms-dialog-form .lms-choice-row.lms-choice-row-has-item {
+.lms-choice-menu .lms-choice-row.lms-choice-row-has-item {
     grid-template-columns: minmax(0, 1fr) 30px;
 }
 
-.lms-dialog-form .lms-choice-row.is-selected {
+.lms-choice-menu .lms-choice-row.is-selected {
     background: #1f65d6;
 }
 
-.lms-dialog-form .lms-choice-row.is-selected .lms-choice-row-select {
+.lms-choice-menu .lms-choice-row.is-selected .lms-choice-row-select {
     color: #fff;
 }
 
-.lms-dialog-form .lms-choice-row:hover,
-.lms-dialog-form .lms-choice-row:focus-within {
+.lms-choice-menu .lms-choice-row:hover,
+.lms-choice-menu .lms-choice-row:focus-within {
     background: #d8ccb2;
 }
 
-.lms-dialog-form .lms-choice-row:hover .lms-choice-row-select,
-.lms-dialog-form .lms-choice-row:focus-within .lms-choice-row-select {
+.lms-choice-menu .lms-choice-row:hover .lms-choice-row-select,
+.lms-choice-menu .lms-choice-row:focus-within .lms-choice-row-select {
     color: #1b130d;
 }
 
-.lms-dialog-form .lms-choice-row.is-selected:hover,
-.lms-dialog-form .lms-choice-row.is-selected:focus-within {
+.lms-choice-menu .lms-choice-row.is-selected:hover,
+.lms-choice-menu .lms-choice-row.is-selected:focus-within {
     background: #1f65d6;
 }
 
-.lms-dialog-form .lms-choice-row.is-selected:hover .lms-choice-row-select,
-.lms-dialog-form .lms-choice-row.is-selected:focus-within .lms-choice-row-select {
+.lms-choice-menu .lms-choice-row.is-selected:hover .lms-choice-row-select,
+.lms-choice-menu .lms-choice-row.is-selected:focus-within .lms-choice-row-select {
     color: #fff;
 }
 
-.lms-dialog-form .lms-choice-row-select {
+.lms-choice-menu .lms-choice-row-select {
     width: 100%;
     min-width: 0;
     height: 28px;
@@ -755,14 +795,14 @@
     text-shadow: none;
 }
 
-.lms-dialog-form .lms-choice-row-select span {
+.lms-choice-menu .lms-choice-row-select span {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.lms-dialog-form .lms-choice-row-show-item,
+.lms-choice-menu .lms-choice-row-show-item,
 .lms-dialog-form .lms-choice-show-item {
     width: 30px;
     height: 28px;
@@ -774,7 +814,7 @@
 }
 
 .lms-dialog-form option.lms-duplicate-choice,
-.lms-dialog-form .lms-choice-row.lms-duplicate-choice .lms-choice-row-select {
+.lms-choice-menu .lms-choice-row.lms-duplicate-choice .lms-choice-row-select {
     color: rgba(27, 19, 13, 0.48);
     background: rgba(122, 50, 31, 0.08);
 }

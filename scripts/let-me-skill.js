@@ -34,7 +34,7 @@ import {
     strengthCost,
 } from "./advancement-rules.js";
 import { registerAdvancementSettings } from "./advancement-settings.js";
-import { choiceMenuPlacement, choiceSelectHtml as dialogChoiceSelectHtml } from "./dialog-choice-select.js";
+import { choiceMenuLayout, choiceMenuZIndex, choiceSelectHtml as dialogChoiceSelectHtml, portalChoiceMenu } from "./dialog-choice-select.js";
 import { dialogFormHtml, promptDialogApplicationOptions, promptDialogOptions } from "./dialog-window.js";
 import { calculateSnappedPanelPosition, sameSnappedPanelPosition, shouldResetSheetStateOnClose, zIndexBelowAnchor } from "./panel-layout.js";
 import { captureScrollPositions, restoreScrollPositions } from "./sheet-scroll.js";
@@ -1506,8 +1506,11 @@ function bindChoiceSelect(root, choices) {
     const menu = picker?.querySelector(".lms-choice-menu");
     const selectedShowButton = root.querySelector(".lms-choice-selected-show-item");
     const warning = root.querySelector(".lms-choice-warning");
+    const sortControls = root.querySelector("[data-lms-choice-sort-controls]");
+    const sortButtons = Array.from(root.querySelectorAll("[data-lms-choice-sort-mode]"));
     if (!(nameInput instanceof HTMLInputElement)) return;
 
+    let restoreChoiceMenu = null;
     const choiceByValue = (value) => choices[Number.parseInt(value, 10)] ?? null;
     const currentValue = () => {
         if (select instanceof HTMLSelectElement) return select.value;
@@ -1551,15 +1554,54 @@ function bindChoiceSelect(root, choices) {
         if (updateName && choice) nameInput.value = choice.name;
         refreshChoiceControls();
     };
+    const handleDocumentClick = (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target || picker?.contains?.(target) || menu?.contains?.(target)) return;
+        setOpen(false);
+    };
+    const handleDocumentKeydown = (event) => {
+        if (event.key === "Escape") setOpen(false);
+    };
     const setOpen = (open) => {
         if (!(trigger instanceof HTMLButtonElement) || !(menu instanceof HTMLElement)) return;
-        if (open) positionChoiceMenu(root, picker, trigger, menu);
+        if (open) {
+            restoreChoiceMenu = restoreChoiceMenu ?? portalChoiceMenu(menu, document.body);
+            positionChoiceMenu(root, picker, trigger, menu);
+        }
         menu.hidden = !open;
         trigger.setAttribute("aria-expanded", open ? "true" : "false");
+        document.removeEventListener("click", handleDocumentClick);
+        document.removeEventListener("keydown", handleDocumentKeydown);
+        if (open) {
+            document.addEventListener("click", handleDocumentClick);
+            document.addEventListener("keydown", handleDocumentKeydown);
+        }
+        if (!open) {
+            restoreChoiceMenu?.();
+            restoreChoiceMenu = null;
+        }
+    };
+    const setSortMode = (mode) => {
+        if (!(menu instanceof HTMLElement)) return;
+        applyChoiceMenuSort(menu, mode);
+        sortButtons.forEach((button) => {
+            const active = button.getAttribute("data-lms-choice-sort-mode") === mode;
+            button.classList.toggle("is-active", active);
+            button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+        refreshChoiceControls();
     };
 
     select?.addEventListener("change", () => {
         setValue(select.value, { updateName: true });
+    });
+    sortControls?.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const button = target?.closest?.("[data-lms-choice-sort-mode]");
+        if (!button) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setSortMode(button.getAttribute("data-lms-choice-sort-mode") === "name" ? "name" : "progression");
     });
     trigger?.addEventListener("click", (event) => {
         event.preventDefault();
@@ -1600,17 +1642,85 @@ function bindChoiceSelect(root, choices) {
     setValue(currentValue());
 }
 
+function applyChoiceMenuSort(menu, mode) {
+    const normalizedMode = mode === "name" ? "name" : "progression";
+    menu.querySelectorAll(".lms-choice-group-heading").forEach((heading) => heading.remove());
+
+    const freeRows = Array.from(menu.querySelectorAll('.lms-choice-row[data-choice-free="true"]'));
+    const rows = Array.from(menu.querySelectorAll('.lms-choice-row:not([data-choice-free="true"])'));
+    rows.sort((left, right) => compareChoiceRows(left, right, normalizedMode));
+
+    freeRows.forEach((row) => menu.append(row));
+
+    let activeGroup = null;
+    rows.forEach((row) => {
+        if (normalizedMode === "progression") {
+            const groupLabel = row.getAttribute("data-choice-progression-label") || "Ohne Stufe";
+            if (groupLabel !== activeGroup) {
+                activeGroup = groupLabel;
+                menu.append(choiceGroupHeadingElement(groupLabel));
+            }
+        }
+        menu.append(row);
+    });
+}
+
+function compareChoiceRows(left, right, mode) {
+    if (mode === "progression") {
+        const leftProgression = choiceRowProgression(left);
+        const rightProgression = choiceRowProgression(right);
+        const leftHasProgression = Number.isInteger(leftProgression);
+        const rightHasProgression = Number.isInteger(rightProgression);
+        if (leftHasProgression && rightHasProgression && leftProgression !== rightProgression) return leftProgression - rightProgression;
+        if (leftHasProgression !== rightHasProgression) return leftHasProgression ? -1 : 1;
+    }
+    return choiceRowName(left).localeCompare(choiceRowName(right), "de") || choiceRowIndex(left) - choiceRowIndex(right);
+}
+
+function choiceRowProgression(row) {
+    const progression = Number.parseInt(row.getAttribute("data-choice-progression") ?? "", 10);
+    return Number.isInteger(progression) ? progression : null;
+}
+
+function choiceRowName(row) {
+    return row.getAttribute("data-choice-sort-name") ?? row.querySelector(".lms-choice-row-select span")?.textContent ?? "";
+}
+
+function choiceRowIndex(row) {
+    const index = Number.parseInt(row.getAttribute("data-choice-index") ?? row.getAttribute("data-choice-value") ?? "", 10);
+    return Number.isInteger(index) ? index : 0;
+}
+
+function choiceGroupHeadingElement(label) {
+    const heading = document.createElement("span");
+    heading.className = "lms-choice-group-heading";
+    heading.setAttribute("role", "presentation");
+    heading.textContent = label;
+    return heading;
+}
+
 function positionChoiceMenu(root, picker, trigger, menu) {
     if (!(picker instanceof HTMLElement) || !(trigger instanceof HTMLElement) || !(menu instanceof HTMLElement)) return;
-    const boundary = root.closest(".window-content, .dialog, .application, .app, .window-app") ?? document.documentElement;
-    if (!(boundary instanceof HTMLElement)) return;
-
-    const placement = choiceMenuPlacement({
+    const ownerWindow = root.closest?.(".application, .app, .window-app, .dialog") ?? root;
+    const viewport = document.documentElement;
+    const viewportRect = viewport.getBoundingClientRect();
+    const boundaryRect = {
+        left: 0,
+        top: 0,
+        right: window.innerWidth || viewport.clientWidth || viewportRect.right,
+        bottom: window.innerHeight || viewport.clientHeight || viewportRect.bottom,
+    };
+    const placement = choiceMenuLayout({
         triggerRect: trigger.getBoundingClientRect(),
-        boundaryRect: boundary.getBoundingClientRect(),
+        boundaryRect,
     });
     picker.classList.toggle("lms-choice-opens-up", placement.direction === "up");
+    menu.style.setProperty("--lms-choice-menu-left", `${placement.left}px`);
+    menu.style.setProperty("--lms-choice-menu-width", `${placement.width}px`);
+    menu.style.setProperty("--lms-choice-menu-top", placement.top === null ? "auto" : `${placement.top}px`);
+    menu.style.setProperty("--lms-choice-menu-bottom", placement.bottom === null ? "auto" : `${placement.bottom}px`);
     menu.style.setProperty("--lms-choice-menu-max-height", `${placement.maxHeight}px`);
+    menu.style.setProperty("--lms-choice-menu-z-index", String(choiceMenuZIndex(ownerWindow instanceof Element ? getComputedStyle(ownerWindow) : null)));
 }
 
 async function collectItemChoices(itemType, filter = null) {
